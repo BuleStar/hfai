@@ -19,7 +19,6 @@ import lombok.Setter;
 @TableName("tb_user_role")
 public class TbUserRoleEntity implements Serializable {
 
-    private static final long serialVersionUID = 1L;
 
     @TableField("user_id")
     private Integer userId;
