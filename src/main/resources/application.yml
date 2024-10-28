@@ -1,0 +1,51 @@
+spring:
+    application:
+        name: hfai
+    data:
+        redis:
+            database: 15
+            host: 127.0.0.1
+            port: 6379
+            password:
+            jedis:
+                pool:
+                    max-active: 16
+                    max-wait: -1
+                    min-idle: 5
+                    max-idle: 8
+    datasource:
+        url: jdbc:mysql://127.0.0.1:3306/mall
+        username: root
+        password: 1q2w3e4r
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        druid:
+            max-active: 10
+            min-idle: 5
+            max-wait: 10000
+            initial-size: 5
+            validation-query: select 1
+            stat-view-servlet:
+                enabled: true
+                #        login-username: admin
+                #        login-password: admin
+                #        allow:
+                #        deny:
+                url-pattern: "/druid/*"
+                allow: 47.95.110.151
+            web-stat-filter:
+                enabled: true
+                url-pattern: "/druid/**"
+                exclusions: '*.js,*.gif,*.jpg,*.jpeg,*.png,*.css,*.ico,*.jsp,/druid/*'
+                principal-session-name: ''
+                session-stat-enable: true
+                session-stat-max-count: 1000
+mybatis:
+    mapper-locations: classpath:mapper/*.xml
+    type-aliases-package: com.hf.webflux.user.entity
+#mybatisplus的配置
+mybatis-plus:
+    configuration:
+        cache-enabled: true
+        use-generated-keys: true
+        default-executor-type: REUSE
+        use-actual-param-name: true
