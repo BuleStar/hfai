@@ -12,6 +12,8 @@ public class ResultType {
      */
     public static final ResultType SUCCESS = new ResultType(200, "Success");
     public static final ResultType OK = new ResultType(200, "OK");
+    public static final ResultType BAD_PARAM = new ResultType(500, "bad param");
+    public static final ResultType RUNNING_ERROR = new ResultType(501, "running error");
 
     /**
      * 错误类型码

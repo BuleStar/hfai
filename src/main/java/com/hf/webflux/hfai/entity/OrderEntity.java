@@ -44,4 +44,7 @@ public class OrderEntity implements Serializable {
 
     @TableField("remark")
     private String remark;
+
+    @TableField("status")
+    private Integer status;
 }
