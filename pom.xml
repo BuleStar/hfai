@@ -116,6 +116,27 @@
             <artifactId>hfai</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+
+
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-spring-boot-starter</artifactId>
+            <version>0.35.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
+            <version>0.35.0</version>
+        </dependency>
+
+        <!-- for Flux<String> support -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-reactor</artifactId>
+            <version>0.35.0</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -53,3 +53,21 @@ user:
     expireTimeInSeconds: 360
 cache:
     key: user_key
+
+langchain4j:
+    open-ai:
+        chat-model:
+            ## 这个key是启动用的，不是真实key，需要的话请自行购买
+            api-key: sk-36f3d7d7-a7b7-4f1d-b5e9-d5f1d5f1d5f1test
+            log-requests: true
+            log-responses: true
+            model-name: gpt-4o-mini
+        streaming-chat-model:
+            api-key: sk-36f3d7d7-a7b7-4f1d-b5e9-d5f1d5f1d5f1test
+            model-name: gpt-4o-mini
+logging:
+    level:
+        dev:
+            ai4j:
+                openai4j: DEBUG
+            changing4j: DEBUG
