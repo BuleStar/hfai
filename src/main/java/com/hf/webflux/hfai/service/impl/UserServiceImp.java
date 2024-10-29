@@ -179,4 +179,6 @@ public class UserServiceImp extends ServiceImpl<UserMapper, UserEntity> implemen
             throw new RuntimeException("Failed to hash user ID", e);
         }
     }
+
+
 }

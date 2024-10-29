@@ -22,8 +22,6 @@ import lombok.Setter;
 @TableName("tb_role")
 public class TbRoleEntity implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 

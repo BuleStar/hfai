@@ -51,3 +51,5 @@ mybatis-plus:
         use-actual-param-name: true
 user:
     expireTimeInSeconds: 360
+cache:
+    key: user_key
