@@ -14,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -39,6 +42,9 @@ public class UserServiceImp extends ServiceImpl<UserMapper, UserEntity> implemen
 
     @Autowired
     private ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
+
+    @Autowired
+    private OAuth2AuthorizedClientService authorizedClientService;
 
     @Value("${user.expireTimeInSeconds}")
     private long expireTimeInSeconds;
@@ -161,6 +167,18 @@ public class UserServiceImp extends ServiceImpl<UserMapper, UserEntity> implemen
                 });
     }
 
+    public Mono<String> loginWithGitHub(OAuth2User oauth2User) {
+        String githubUserName = oauth2User.getAttribute("login");
+        if (githubUserName == null) {
+            log.warn("GitHub user login attribute is missing");
+            return Mono.empty();
+        }
+
+        String userNameHash = hashUserName(githubUserName);
+
+        return getFromRedis(githubUserName, userNameHash)
+                .switchIfEmpty(getFromDatabase(githubUserName, userNameHash));
+    }
 
     private String sanitizeInput(String input) {
         // 进行输入验证和清理，例如去除特殊字符
