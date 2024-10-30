@@ -132,6 +132,12 @@
             <artifactId>langchain4j-reactor</artifactId>
             <version>0.35.0</version>
         </dependency>
+
+        <dependency>
+            <groupId>io.github.binance</groupId>
+            <artifactId>binance-connector-java</artifactId>
+            <version>3.4.0</version>
+        </dependency>
     </dependencies>
 
     <build>
