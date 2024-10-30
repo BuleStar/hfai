@@ -41,9 +41,6 @@ spring:
                 principal-session-name: ''
                 session-stat-enable: true
                 session-stat-max-count: 1000
-mybatis:
-    mapper-locations: classpath:mapper/*.xml
-    type-aliases-package: com.hf.webflux.user.entity
 #mybatisplus的配置
 mybatis-plus:
     configuration:
@@ -51,6 +48,7 @@ mybatis-plus:
         use-generated-keys: true
         default-executor-type: REUSE
         use-actual-param-name: true
+        log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 输出SQL log 方便 debug
 user:
     expireTimeInSeconds: 360
 cache:
