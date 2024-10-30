@@ -7,6 +7,9 @@ import com.hf.webflux.hfai.vo.UserVo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -27,6 +30,9 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private OAuth2AuthorizedClientService authorizedClientService;
+
     @GetMapping("/userInfo/{userId}")
     Mono<Result<?>> userInfo(@PathVariable String userId) {
         return userService.getUserInfo(userId).flatMap(r -> Mono.just(Result.success(r)));
@@ -38,5 +44,10 @@ public class UserController {
     @GetMapping("/login")
     Mono<Result<?>> login(@RequestBody UserVo userVo) {
         return userService.login(userVo).flatMap(r -> Mono.just(Result.success(r)));
+    }
+
+    @GetMapping("/login/github")
+    public Mono<Result<?>> loginWithGitHub(@RegisteredOAuth2AuthorizedClient("github") OAuth2User oauth2User) {
+        return userService.loginWithGitHub(oauth2User).flatMap(r -> Mono.just(Result.success(r)));
     }
 }
