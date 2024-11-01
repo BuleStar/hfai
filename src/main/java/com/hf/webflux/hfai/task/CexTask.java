@@ -14,8 +14,18 @@ public class CexTask {
 
     private final BinanceService binanceService;
 
-    @Scheduled(cron = "0 */2 * * * *")
+    @Scheduled(cron = "0 */1 * * * *")
     public void getNewMarketPrice() {
         binanceService.getPrice(SymbolConstant.BTCUSDT).subscribe();
+    }
+
+//    @Scheduled(cron = "0 */1 * * * *")
+    public void getOpenOrders() {
+        binanceService.getOpenOrders(SymbolConstant.BTCUSDT).subscribe();
+    }
+
+    @Scheduled(cron = "*/30 * * * * *")
+    public void getDepth() {
+        binanceService.getDepth(SymbolConstant.BTCUSDT).subscribe();
     }
 }

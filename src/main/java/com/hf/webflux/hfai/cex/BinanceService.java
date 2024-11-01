@@ -8,7 +8,6 @@ import com.hf.webflux.hfai.cex.vo.TickerSymbolResult;
 import com.hf.webflux.hfai.service.CexApiService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -73,6 +72,18 @@ public class BinanceService {
             return JSON.parseObject(priceResult, TickerSymbolResult.class);
         });
     }
+    /**
+     * 查看当前全部挂单
+     */
+    public Mono<String> getOpenOrders(SymbolConstant symbol) {
+        return fetchMarketData(symbol, parameters -> futuresClient.account().currentAllOpenOrders(parameters));
+    }
 
 
+    public Mono<String> getDepth(SymbolConstant symbol) {
+        return fetchMarketData(symbol, parameters -> futuresClient.market().depth(parameters));
+    }
+    public Mono<String> getKline(SymbolConstant symbol) {
+        return fetchMarketData(symbol, parameters -> futuresClient.market().klines(parameters));
+    }
 }
