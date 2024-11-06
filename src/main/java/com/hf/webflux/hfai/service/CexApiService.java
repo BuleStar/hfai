@@ -13,5 +13,5 @@ import reactor.core.publisher.Mono;
  * @since 2024-10-31
  */
 public interface CexApiService extends IService<CexApiEntity> {
-     Mono<CexApiEntity> getById();
+     CexApiEntity getById();
 }

@@ -1,4 +1,4 @@
-package com.hf.webflux.hfai.cex;
+package com.hf.webflux.hfai.cex.constant;
 
 import lombok.Getter;
 

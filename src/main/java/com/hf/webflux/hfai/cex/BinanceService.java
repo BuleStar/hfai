@@ -4,86 +4,85 @@ package com.hf.webflux.hfai.cex;
 import com.alibaba.fastjson.JSON;
 import com.binance.connector.futures.client.impl.UMFuturesClientImpl;
 
-import com.hf.webflux.hfai.cex.vo.TickerSymbolResult;
-import com.hf.webflux.hfai.service.CexApiService;
+import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Service
 @Slf4j
 public class BinanceService {
 
     @Autowired
-    private  CexApiService cexApiService;
+    private UMFuturesClientImpl futuresClient;
 
-    private  UMFuturesClientImpl futuresClient;
-    public Mono<Void> init() {
-        return cexApiService.getById().flatMap(data -> {
-            String apiKey = data.getApiKey();
-            String secretKey = data.getSecretKey();
-
-            if (apiKey == null || secretKey == null) {
-                log.error("API key or Secret key is null");
-                return Mono.error(new IllegalArgumentException("API key and Secret key must not be null"));
-            }
-            this.futuresClient = new UMFuturesClientImpl(apiKey, secretKey);
-            log.info("UMFuturesClientImpl initialized with API key and Secret key");
-            return Mono.empty();
-        });
+    private <T> Mono<T> handleErrors(Supplier<Mono<T>> supplier, String methodName, LinkedHashMap<String, Object> parameters) {
+        return supplier.get()
+                .doOnSuccess(result -> log.info("Success in {}: {}", methodName, result))
+                .doOnError(e -> log.error("Error in {}: {}", methodName, e.getMessage(), e))
+                .onErrorResume(e -> Mono.error(new RuntimeException("Error in " + methodName + ": " + parameters, e)));
     }
 
-    private <T> Mono<T> fetchMarketData(SymbolConstant symbol, Function<LinkedHashMap<String, Object>, T> fetchDataFunction) {
-        if (symbol == null) {
-            log.error("Symbol cannot be null");
-            return Mono.error(new IllegalArgumentException("Symbol cannot be null"));
-        }
-
-        String symbolValue = symbol.getValue();
-        if (symbolValue == null || symbolValue.isEmpty()) {
-            log.error("Invalid symbol value: {}", symbolValue);
-            return Mono.error(new IllegalArgumentException("Invalid symbol value"));
-        }
-
-        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("symbol", symbolValue);
-        return Mono.fromCallable(() -> {
-                    T result = fetchDataFunction.apply(parameters);
-                    log.info("Fetched data for symbol {}: {}", symbolValue, result);
-                    return result;
-                }).doOnError(e -> log.error("Error fetching data for symbol {}: {}", symbolValue, e.getMessage(), e))
-                .onErrorResume(e -> Mono.error(new RuntimeException("Error fetching data for symbol " + symbolValue, e)));    }
-
-    public Mono<String> getMarkPrice(SymbolConstant symbol) {
-        return fetchMarketData(symbol, parameters -> futuresClient.market().markPrice(parameters));
+    public Mono<String> accountInformation(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.account().accountInformation(parameters)), "accountInformation", parameters);
     }
 
-    public Mono<String> getFundingRate(SymbolConstant symbol) {
-        return fetchMarketData(symbol, parameters -> futuresClient.market().fundingRate(parameters));
+    public Mono<String> accountTradeList(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.account().accountTradeList(parameters)), "accountTradeList", parameters);
     }
 
-    public Mono<TickerSymbolResult> getPrice(SymbolConstant symbol) {
-        return fetchMarketData(symbol, parameters -> {
-            String priceResult = futuresClient.market().tickerSymbol(parameters);
-            return JSON.parseObject(priceResult, TickerSymbolResult.class);
-        });
+    public Mono<String> allOrders(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.account().allOrders(parameters)), "allOrders", parameters);
     }
+
+    public Mono<String> getCommonFuturesClientMarket(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.account().futuresAccountBalance(parameters)), "getCommonFuturesClientMarket", parameters);
+    }
+
+    public Mono<String> getFuturesAccountBalance(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.account().futuresAccountBalance(parameters)), "getFuturesAccountBalance", parameters);
+    }
+
+    public Mono<String> getHistoricalBlvt(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().historicalBlvt(parameters)), "getHistoricalBlvt", parameters);
+    }
+
+    public Mono<String> getLongShortRatio(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().longShortRatio(parameters)), "getLongShortRatio", parameters);
+    }
+
+    public Mono<MarkPriceInfo> getMarkPrice(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().markPrice(parameters))
+                .flatMap(data -> parseJson(data, MarkPriceInfo.class))
+                        .doOnSuccess(priceMonitor -> log.info("Success in getMarkPrice: {}", priceMonitor))
+                , "getMarkPrice", parameters);
+    }
+
+
     /**
-     * 查看当前全部挂单
+     * symbol	STRING	YES	交易对
+     * interval	ENUM	YES	时间间隔
+     * startTime	LONG	NO	起始时间
+     * endTime	LONG	NO	结束时间
+     * limit	INT	NO	默认值:500 最大值:1500
      */
-    public Mono<String> getOpenOrders(SymbolConstant symbol) {
-        return fetchMarketData(symbol, parameters -> futuresClient.account().currentAllOpenOrders(parameters));
+    public Mono<String> getKlines(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().klines(parameters))
+                        .doOnSuccess(data -> log.info("Success in getKlines: {}", data))
+                , "getKlines", parameters);
     }
 
-
-    public Mono<String> getDepth(SymbolConstant symbol) {
-        return fetchMarketData(symbol, parameters -> futuresClient.market().depth(parameters));
-    }
-    public Mono<String> getKline(SymbolConstant symbol) {
-        return fetchMarketData(symbol, parameters -> futuresClient.market().klines(parameters));
+    private <T> Mono<T> parseJson(String json, Class<T> clazz) {
+        try {
+            T result = JSON.parseObject(json, clazz);
+            return Mono.just(result);
+        } catch (Exception e) {
+            log.error("Error parsing JSON to {}: {}", clazz.getSimpleName(), e.getMessage(), e);
+            return Mono.error(new RuntimeException("JSON parsing error", e));
+        }
     }
 }

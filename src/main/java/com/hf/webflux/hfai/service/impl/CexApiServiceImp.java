@@ -18,8 +18,7 @@ import reactor.core.publisher.Mono;
 @Service
 public class CexApiServiceImp extends ServiceImpl<CexApiMapper, CexApiEntity> implements CexApiService {
 
-    public Mono<CexApiEntity> getById(){
-        return Mono.fromCallable(()->baseMapper.selectById(1))
-                .flatMap(Mono::just);
+    public CexApiEntity getById(){
+        return baseMapper.selectById(1);
     }
 }

@@ -4,7 +4,6 @@ import java.util.*;
 import java.math.*;
 
 import com.hf.webflux.hfai.cex.BinanceService;
-import com.hf.webflux.hfai.cex.SymbolConstant;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

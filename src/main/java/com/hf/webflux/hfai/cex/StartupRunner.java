@@ -18,9 +18,9 @@ public class StartupRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        binanceService.init().subscribe(
-                null,
-                error -> log.error("Failed to initialize BinanceService: {}", error.getMessage())
-        );
+//        binanceService.init().subscribe(
+//                null,
+//                error -> log.error("Failed to initialize BinanceService: {}", error.getMessage())
+//        );
     }
 }
