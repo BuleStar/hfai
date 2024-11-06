@@ -1,13 +1,18 @@
 package com.hf.webflux.hfai.cex;
 import cn.hutool.core.date.DateUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hf.webflux.hfai.cex.constant.Interval;
-import com.hf.webflux.hfai.utils.Util;
+import com.hf.webflux.hfai.service.OrderDataService;
+import com.hf.webflux.hfai.utils.JsonToMonoConverter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -15,7 +20,8 @@ public class MovingAverageCalculator {
 
     @Autowired
     private BinanceService binanceService;
-
+    @Autowired
+    private OrderDataService orderDataService;
     /**
      * 计算加权移动平均线 (WMA)
      */
@@ -169,11 +175,9 @@ public class MovingAverageCalculator {
         parameters.put("symbol", "BTCUSDT");
         parameters.put("interval", Interval.ONE_MINUTE);
         parameters.put("limit", window);
-        parameters.put("startTime", DateUtil.parse("2023-07-01 00:00:00").getTime());
-        parameters.put("endTime", DateUtil.parse("2023-07-01 00:00:00").getTime());
-        parameters.put("limit", 1000);
-        binanceService.getKlines(parameters);
-
+        parameters.put("startTime", DateUtil.parse("2024-01-01 00:00:00").getTime());
+        parameters.put("endTime", DateUtil.now());
+        var result =binanceService.getKlines(parameters).subscribe();
         return switch (type) {
             case "WMA" -> calculateWMA(prices, window);
             case "EMA" -> calculateEMA(prices, window);
@@ -182,6 +186,65 @@ public class MovingAverageCalculator {
             default -> throw new IllegalArgumentException("Invalid type: " + type);
         };
     }
+    // 策略示例
+    public Mono<Void> runStrategy(String symbol) {
+        return fetchKlineData(symbol, "1h", 100) // 获取最近100个小时的K线
+                .flatMap(prices -> {
+                    List<Double> wma =calculateWMA(prices, 20);
+                    List<Double> ema =calculateEMA(prices, 20);
+                    List<Double> sma =calculateSMMA(prices, 20);
+                    List<Double> wmaWithDeque =calculateWMAWithDeque(prices, 20);
+                    List<Double> smaWithDeque =calculateSMAWithDeque(prices, 20);
+
+                    log.info("SMA: {}", sma);
+                    log.info("EMA: {}", ema);
+                    log.info("WMA: {}", wma);
+                    log.info("WMA with Deque: {}", wmaWithDeque);
+                    log.info("SMA with Deque: {}", smaWithDeque);
+                    return Mono.empty();
+                });
+    }
+
+    public Mono<List<Double>> fetchKlineData(String symbol, String interval, int limit) {
+        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("symbol", "BTCUSDT");
+        parameters.put("interval", Interval.ONE_MINUTE);
+        parameters.put("limit", 200);
+        parameters.put("startTime", DateUtil.parse("2024-01-01 00:00:00").getTime());
+        parameters.put("endTime", DateUtil.now());
+        return binanceService.getKlines(parameters)
+                .flatMap(data -> convertToJsonList(data).flatMap(this::generatePrice));
+    }
+    public Mono<List<List<Object>>> convertToJsonList(String json) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return Mono.fromCallable(() -> {
+            try {
+                return objectMapper.readValue(json, List.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to parse JSON", e);
+            }
+        });
+    }
+    public Mono<List<Double>> generatePrice(List<List<Object>> klines) {
+        return Mono.just(klines.stream()
+                .filter(kline -> kline != null && kline.size() > 4)
+                .map(kline -> {
+                    Object priceObj = kline.get(4);
+                    if (priceObj == null) {
+                        return null;
+                    }
+                    try {
+                        return Double.parseDouble(priceObj.toString());
+                    } catch (NumberFormatException e) {
+                        // 处理异常情况，例如记录日志
+                        System.err.println("Invalid number format: " + priceObj);
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList()));
+    }
+
 
     // 测试
     public static void main(String[] args) {

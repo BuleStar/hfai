@@ -51,7 +51,7 @@ public class MyBatisPlusGenerator {
                             .columnNaming(NamingStrategy.underline_to_camel)
                             //主键策略递增
                             .idType(IdType.AUTO)
-                            .formatFileName("%sEntity")
+                            .formatFileName("%s")
                             .build();
                 })
                 .execute();
