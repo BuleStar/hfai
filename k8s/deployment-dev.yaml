@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hfai-dev
+  labels:
+    app: hfai
+    environment: development
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hfai
+      environment: development
+  template:
+    metadata:
+      labels:
+        app: hfai
+        environment: development
+    spec:
+      containers:
+      - name: hfai
+        image: hfai:dev
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: dev
