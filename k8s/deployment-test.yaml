@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hfai-test
+  labels:
+    app: hfai
+    environment: testing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hfai
+      environment: testing
+  template:
+    metadata:
+      labels:
+        app: hfai
+        environment: testing
+    spec:
+      containers:
+      - name: hfai
+        image: hfai:test
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: test

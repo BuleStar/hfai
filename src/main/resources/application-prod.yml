@@ -1,0 +1,60 @@
+server:
+    port: 8080
+spring:
+    application:
+        name: hfai-prod
+    profiles:
+        active: prod
+    data:
+        redis:
+            database: 15
+            host: 127.0.0.1
+            port: 6379
+            password:
+            jedis:
+                pool:
+                    max-active: 16
+                    max-wait: -1
+                    min-idle: 5
+                    max-idle: 8
+    datasource:
+        url: jdbc:mysql://127.0.0.1:3306/mall_prod
+        username: root
+        password: 1q2w3e4r
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        hikari:
+            pool-name: HikariCP
+            minimum-idle: 5
+            idle-timeout: 600000
+            maximum-pool-size: 10
+            auto-commit: true
+            max-lifetime: 1800000
+            connection-timeout: 30000
+            connection-test-query: SELECT 1
+mybatis-plus:
+    configuration:
+        cache-enabled: true
+        use-generated-keys: true
+        default-executor-type: REUSE
+        use-actual-param-name: true
+        log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+user:
+    expireTimeInSeconds: 360
+cache:
+    key: user_key
+langchain4j:
+    open-ai:
+        chat-model:
+            api-key: sk-36f3d7d7-a7b7-4f1d-b5e9-d5f1d5f1d5f1test
+            log-requests: true
+            log-responses: true
+            model-name: gpt-4o-mini
+        streaming-chat-model:
+            api-key: sk-36f3d7d7-a7b7-4f1d-b5e9-d5f1d5f1d5f1test
+            model-name: gpt-4o-mini
+logging:
+    level:
+        dev:
+            ai4j:
+                openai4j: DEBUG
+            changing4j: DEBUG
