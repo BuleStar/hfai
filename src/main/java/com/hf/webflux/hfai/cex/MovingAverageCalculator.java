@@ -1,5 +1,6 @@
 package com.hf.webflux.hfai.cex;
 import cn.hutool.core.date.DateUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hf.webflux.hfai.cex.constant.Interval;
 import com.hf.webflux.hfai.service.OrderDataService;
@@ -208,7 +209,7 @@ public class MovingAverageCalculator {
     public Mono<List<Double>> fetchKlineData(String symbol, String interval, int limit) {
         LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("symbol", "BTCUSDT");
-        parameters.put("interval", Interval.ONE_MINUTE);
+        parameters.put("interval", Interval.ONE_MINUTE.name());
         parameters.put("limit", 200);
         parameters.put("startTime", DateUtil.parse("2024-01-01 00:00:00").getTime());
         parameters.put("endTime", DateUtil.now());
@@ -219,7 +220,8 @@ public class MovingAverageCalculator {
         ObjectMapper objectMapper = new ObjectMapper();
         return Mono.fromCallable(() -> {
             try {
-                return objectMapper.readValue(json, List.class);
+                TypeReference<List<List<Object>>> typeRef = new TypeReference<>() {};
+                return objectMapper.readValue(json, typeRef);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse JSON", e);
             }

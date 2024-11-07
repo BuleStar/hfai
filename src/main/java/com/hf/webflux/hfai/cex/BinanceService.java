@@ -4,13 +4,16 @@ package com.hf.webflux.hfai.cex;
 import com.alibaba.fastjson.JSON;
 import com.binance.connector.futures.client.impl.UMFuturesClientImpl;
 
+import com.hf.webflux.hfai.cex.vo.FundingRate;
 import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
+import com.hf.webflux.hfai.cex.vo.TickerSymbolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.function.Supplier;
 
 @Service
@@ -74,6 +77,26 @@ public class BinanceService {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().klines(parameters))
                         .doOnSuccess(data -> log.info("Success in getKlines: {}", data))
                 , "getKlines", parameters);
+    }
+
+    public Mono<List<FundingRate>> getFundingRate(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().fundingRate(parameters))
+                        .map(data -> {
+                            log.info("Success in getFundingRate: {}", data);
+                            // 将 JSON 字符串转换为 List<FundingRate>
+                            return JSON.parseArray(data, FundingRate.class);
+                        })
+                , "getFundingRate", parameters);
+    }
+
+    public Mono<TickerSymbolResult> getTickerSymbol(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().tickerSymbol(parameters))
+                        .map(data -> {
+                            log.info("Success in getTickerSymbol: {}", data);
+                            // 将 JSON 字符串转换为 List<MarkPriceInfo>
+                            return JSON.parseObject(data, TickerSymbolResult.class);
+                        })
+                , "getTickerSymbol", parameters);
     }
 
     private <T> Mono<T> parseJson(String json, Class<T> clazz) {
