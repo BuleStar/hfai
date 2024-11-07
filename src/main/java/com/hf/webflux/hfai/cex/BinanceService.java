@@ -28,7 +28,7 @@ public class BinanceService {
 
     private <T> Mono<T> handleErrors(Supplier<Mono<T>> supplier, String methodName, LinkedHashMap<String, Object> parameters) {
         return supplier.get()
-                .doOnSuccess(result -> log.info("Success in {}: {}", methodName, result))
+//                .doOnSuccess(result -> log.info("Success in {}: {}", methodName, result))
                 .doOnError(e -> log.error("Error in {}: {}", methodName, e.getMessage(), e))
                 .onErrorResume(e -> Mono.error(new RuntimeException("Error in " + methodName + ": " + parameters, e)));
     }

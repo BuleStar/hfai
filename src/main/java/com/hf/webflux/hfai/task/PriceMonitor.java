@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PriceMonitor {
 
-    @Scheduled(cron = "*/5 * * * * *")
+//    @Scheduled(cron = "*/5 * * * * *")
     public void getCryptoPrice() {
         String cryptoPrice = Util.getPrice("BTC", "USDT");
         CryptoPrice data = JSONUtil.toBean(cryptoPrice, CryptoPrice.class);

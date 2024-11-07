@@ -40,16 +40,16 @@ public class CexTask {
 
     @Scheduled(cron = "*/5 * * * * *")
     public void getAccountInformation() {
-        BinanceRequest request = BinanceRequest.builder()
-                .symbol("BTCUSDT")
-                .startTime(DateUtil.parse("2024-10-01 00:00:00").getTime())
-//                .endTime(DateUtil.current())
-                .endTime(DateUtil.parse("2024-11-6 08:36:00").getTime())
-                .limit(300).build();
-        fundingRateStrategyService.scheduleFundingRateStrategy(request);
+//        BinanceRequest request = BinanceRequest.builder()
+//                .symbol("BTCUSDT")
+//                .startTime(DateUtil.parse("2024-10-01 00:00:00").getTime())
+////                .endTime(DateUtil.current())
+//                .endTime(DateUtil.parse("2024-11-6 08:36:00").getTime())
+//                .limit(300).build();
+//        fundingRateStrategyService.scheduleFundingRateStrategy(request);
     }
 
-    @Scheduled(cron = "*/5 * * * * *")
+    @Scheduled(cron = "*/10 * * * * *")
     public void executeOrderBookDepthStrategy() {
         orderBookDepthStrategy.executeOrderBookDepthStrategy("BTCUSDT").subscribe();
     }
