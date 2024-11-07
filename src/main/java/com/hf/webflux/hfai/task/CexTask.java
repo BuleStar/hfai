@@ -3,6 +3,7 @@ package com.hf.webflux.hfai.task;
 import cn.hutool.core.date.DateUtil;
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.cex.strategy.FundingRateStrategyService;
+import com.hf.webflux.hfai.cex.strategy.OrderBookDepthStrategy;
 import com.hf.webflux.hfai.cex.vo.BinanceRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ public class CexTask {
 
     private final BinanceService binanceService;
     private final FundingRateStrategyService fundingRateStrategyService;
+    private final OrderBookDepthStrategy orderBookDepthStrategy;
 
     @Scheduled(cron = " */5 * * * * *")
     public void getNewMarketPrice() {
@@ -45,5 +47,10 @@ public class CexTask {
                 .endTime(DateUtil.parse("2024-11-6 08:36:00").getTime())
                 .limit(300).build();
         fundingRateStrategyService.scheduleFundingRateStrategy(request);
+    }
+
+    @Scheduled(cron = "*/5 * * * * *")
+    public void executeOrderBookDepthStrategy() {
+        orderBookDepthStrategy.executeOrderBookDepthStrategy("BTCUSDT").subscribe();
     }
 }

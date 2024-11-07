@@ -4,8 +4,11 @@ package com.hf.webflux.hfai.cex;
 import com.alibaba.fastjson.JSON;
 import com.binance.connector.futures.client.impl.UMFuturesClientImpl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hf.webflux.hfai.cex.vo.FundingRate;
 import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
+import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.TickerSymbolResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +64,6 @@ public class BinanceService {
     public Mono<MarkPriceInfo> getMarkPrice(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().markPrice(parameters))
                 .flatMap(data -> parseJson(data, MarkPriceInfo.class))
-                        .doOnSuccess(priceMonitor -> log.info("Success in getMarkPrice: {}", priceMonitor))
                 , "getMarkPrice", parameters);
     }
 
@@ -75,14 +77,14 @@ public class BinanceService {
      */
     public Mono<String> getKlines(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().klines(parameters))
-                        .doOnSuccess(data -> log.info("Success in getKlines: {}", data))
+//                        .doOnSuccess(data -> log.info("Success in getKlines: {}", data))
                 , "getKlines", parameters);
     }
 
     public Mono<List<FundingRate>> getFundingRate(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().fundingRate(parameters))
                         .map(data -> {
-                            log.info("Success in getFundingRate: {}", data);
+//                            log.info("Success in getFundingRate: {}", data);
                             // 将 JSON 字符串转换为 List<FundingRate>
                             return JSON.parseArray(data, FundingRate.class);
                         })
@@ -92,11 +94,28 @@ public class BinanceService {
     public Mono<TickerSymbolResult> getTickerSymbol(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().tickerSymbol(parameters))
                         .map(data -> {
-                            log.info("Success in getTickerSymbol: {}", data);
+//                            log.info("Success in getTickerSymbol: {}", data);
                             // 将 JSON 字符串转换为 List<MarkPriceInfo>
                             return JSON.parseObject(data, TickerSymbolResult.class);
                         })
                 , "getTickerSymbol", parameters);
+    }
+    public Mono<OrderBook> getDepth(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() ->
+                        Mono.fromCallable(() -> futuresClient.market().depth(parameters))
+                                .map(this::parseOrderBook) ,// 使用 map 方法将 JSON 转换为 OrderBook
+//                                .doOnSuccess(orderBook -> log.info("Success in getDepth: {}", orderBook)),
+                "getDepth", parameters
+        );
+    }
+
+    private OrderBook parseOrderBook(String data) {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            return mapper.readValue(data, OrderBook.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse order book data", e);
+        }
     }
 
     private <T> Mono<T> parseJson(String json, Class<T> clazz) {
