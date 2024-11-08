@@ -3,6 +3,7 @@ package com.hf.webflux.hfai.cex.strategy;
 import cn.hutool.core.date.DateUtil;
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.cex.TradeService;
+import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
 import com.hf.webflux.hfai.cex.vo.MyOrder;
 import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.StrategyResult;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.function.Tuple2;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,7 +31,12 @@ public class OrderBookDepthStrategy {
     // 设置深度阈值
     private static final BigDecimal BUY_DEPTH_RATIO_THRESHOLD = new BigDecimal("2.6");  // 示例值，实际可根据策略调整
     private static final BigDecimal SELL_DEPTH_RATIO_THRESHOLD = new BigDecimal("0.5");  // 示例值，实际可根据策略调整
-    private static final int ORDER_BOOK_LIMIT = 1000; // 获取订单簿的档数
+
+
+    private static final BigDecimal VOLUME_RATIO_THRESHOLD = BigDecimal.valueOf(2.6); // 买卖深度比阈值，用于判断趋势
+    private static final BigDecimal PRICE_CHANGE_THRESHOLD = BigDecimal.valueOf(0.02); // 价格波动阈值
+
+    private static final int ORDER_BOOK_LIMIT = 500; // 获取订单簿的档数
 
     /**
      * 获取指定交易对的订单簿深度数据
@@ -43,64 +50,94 @@ public class OrderBookDepthStrategy {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
-    /**
-     * 执行订单簿深度策略
-     */
-    public Mono<StrategyResult> executeOrderBookDepthStrategy(String symbol) {
+
+    private Mono<Tuple2<OrderBook, MarkPriceInfo>> getStrategy(String symbol) {
+        var depth = fetchOrderBookDepth(symbol);
         LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("symbol", symbol);
-        return fetchOrderBookDepth(symbol)
-                .zipWith(binanceService.getTickerSymbol(parameters))
+        var ratio = binanceService.getMarkPrice(parameters);
+        return Mono.zip(depth, ratio);
+    }
+
+    public Mono<StrategyResult> executeOrderBookDepthStrategy(String symbol) {
+
+        return getStrategy(symbol)
                 .flatMap(data -> {
-                    // 提取买卖深度列表
                     List<List<String>> bids = data.getT1().getBids();
                     List<List<String>> asks = data.getT1().getAsks();
+                    MarkPriceInfo markPriceInfo = data.getT2();
 
-                    // 计算买卖单总深度
+                    // 计算买卖单总深度和平均价格
                     BigDecimal totalBidDepth = calculateTotalDepth(bids);
                     BigDecimal totalAskDepth = calculateTotalDepth(asks);
-
-                    // 计算买卖深度比
-                    BigDecimal buySellDepthRatio = totalBidDepth.divide(totalAskDepth, 2, BigDecimal.ROUND_HALF_UP);
-                    log.info("Buy/Sell Depth Ratio: {}", buySellDepthRatio);
-                    log.info("Current Price: {}", data.getT2().getPrice());
-                    // 策略逻辑：根据买卖深度比的阈值判断买入或卖出
-                    if (buySellDepthRatio.compareTo(BUY_DEPTH_RATIO_THRESHOLD) > 0) {
-                        log.info("Trigger Buy Operation for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("BUY").info("").build());
-                    } else if (buySellDepthRatio.compareTo(SELL_DEPTH_RATIO_THRESHOLD) < 0) {
-                        log.info("Trigger Sell Operation for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("SELL").info("").build());
-                    } else {
-                        log.info("Hold position for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("HOLD").build()); // 不进行操作
-                    }
-                });
-    }
-    public Mono<StrategyResult> executeAvgPriceStrategy(String symbol) {
-        return fetchOrderBookDepth(symbol)
-                .flatMap(orderBook -> {
-                    List<List<String>> bids = orderBook.getBids();
-                    List<List<String>> asks = orderBook.getAsks();
-                    // 计算平均价格和上下浮动范围
                     BigDecimal avgPrice = calculateAveragePrice(bids, asks);
+
+                    // 定义买卖深度比和价格带宽上下限
+                    BigDecimal buySellDepthRatio = calculateDepthRatio(totalBidDepth, totalAskDepth);
                     BigDecimal upperBound = avgPrice.multiply(BUY_DEPTH_RATIO_THRESHOLD);
                     BigDecimal lowerBound = avgPrice.multiply(SELL_DEPTH_RATIO_THRESHOLD);
 
+                    // 获取最优买卖价和资金费率
                     BigDecimal bestBidPrice = new BigDecimal(bids.get(0).get(0));
                     BigDecimal bestAskPrice = new BigDecimal(asks.get(0).get(0));
+                    BigDecimal fundingRate = markPriceInfo.getLastFundingRate();
 
-                    if (bestBidPrice.compareTo(lowerBound) > 0) {
-                        log.info("Best bid within lower bound, triggering buy operation");
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("BUY").info("").build());
-                    } else if (bestAskPrice.compareTo(upperBound) < 0) {
-                        log.info("Best ask within upper bound, triggering sell operation");
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("SELL").info("").build());
-                    } else {
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("HOLD").build());
-                    }
+                    // 日志输出价格和深度比信息，方便调试
+                    log.info("Price Spread: {}", calculatePriceSpread(bids, asks));
+                    log.info("Buy/Sell Depth Ratio: {}", buySellDepthRatio);
+                    log.info("Current Price: {}", markPriceInfo.getIndexPrice());
+                    log.info("Current Funding Rate: {}", fundingRate);
+
+                    // 策略判断逻辑，根据条件返回买、卖或持有
+                    return Mono.just(determineStrategyResult(
+                            symbol,
+                            buySellDepthRatio,
+                            bestBidPrice,
+                            bestAskPrice,
+                            fundingRate,
+                            upperBound,
+                            lowerBound
+                    ));
+
                 });
+
     }
+    private BigDecimal calculateDepthRatio(BigDecimal totalBidDepth, BigDecimal totalAskDepth) {
+        return totalBidDepth.divide(totalAskDepth, 2, BigDecimal.ROUND_HALF_UP);
+    }
+
+    private StrategyResult determineStrategyResult(String symbol, BigDecimal buySellDepthRatio,
+                                                   BigDecimal bestBidPrice, BigDecimal bestAskPrice,
+                                                   BigDecimal fundingRate, BigDecimal upperBound,
+                                                   BigDecimal lowerBound) {
+        if (shouldBuy(buySellDepthRatio, bestBidPrice, fundingRate, lowerBound)) {
+            return StrategyResult.builder().symbol(symbol).side("BUY").info("").build();
+        } else if (shouldSell(buySellDepthRatio, bestAskPrice, fundingRate, upperBound)) {
+            return StrategyResult.builder().symbol(symbol).side("SELL").info("").build();
+        } else {
+            return StrategyResult.builder().symbol(symbol).side("HOLD").build();
+        }
+    }
+
+    private boolean shouldBuy(BigDecimal buySellDepthRatio, BigDecimal bestBidPrice,
+                              BigDecimal fundingRate, BigDecimal lowerBound) {
+        return buySellDepthRatio.compareTo(BUY_DEPTH_RATIO_THRESHOLD) > 0
+                && bestBidPrice.compareTo(lowerBound) > 0
+                && fundingRate.compareTo(BigDecimal.ZERO) > 0
+                && buySellDepthRatio.compareTo(VOLUME_RATIO_THRESHOLD) > 0;
+    }
+
+    private boolean shouldSell(BigDecimal buySellDepthRatio, BigDecimal bestAskPrice,
+                               BigDecimal fundingRate, BigDecimal upperBound) {
+        return buySellDepthRatio.compareTo(SELL_DEPTH_RATIO_THRESHOLD) < 0
+                && bestAskPrice.compareTo(upperBound) < 0
+                && fundingRate.compareTo(BigDecimal.ZERO) < 0
+                && buySellDepthRatio.compareTo(VOLUME_RATIO_THRESHOLD) < 0;
+    }
+
+
+
+
     /**
      * 计算订单簿深度的总和
      */
@@ -113,7 +150,7 @@ public class OrderBookDepthStrategy {
     /**
      * 买入操作
      */
-    private Mono<Void> openLongPosition(String symbol,BigDecimal price) {
+    private Mono<Void> openLongPosition(String symbol, BigDecimal price) {
         // 在此处实现开多单逻辑
         log.info("Opening Long Position for {}", symbol);
 
@@ -131,7 +168,7 @@ public class OrderBookDepthStrategy {
     /**
      * 卖出操作
      */
-    private Mono<Void> openShortPosition(String symbol,BigDecimal price) {
+    private Mono<Void> openShortPosition(String symbol, BigDecimal price) {
         // 在此处实现开空单逻辑
         log.info("Opening Short Position for {}", symbol);
         MyOrder myOrder = MyOrder.builder()
@@ -146,78 +183,19 @@ public class OrderBookDepthStrategy {
 
 
     /**
-     * 根据资金费率判断市场趋势，用于决定是开多还是开空：
+     * 计算价格带宽（买卖价格差）
+     *
+     * @param bids 买单的列表
+     * @param asks 卖单的列表
+     * @return BigDecimal 返回买卖价差
      */
-    public Mono<StrategyResult> analyzeFundingRate(String symbol) {
-        LinkedHashMap<String, Object> parameters =new LinkedHashMap<>();
-        parameters.put("symbol", symbol);
-        return binanceService.getMarkPrice(parameters)
-                .flatMap(fundingRate -> {
-                    BigDecimal fundingRateValue = fundingRate.getLastFundingRate();
-                    log.info("Funding Rate for {}: {}", symbol, fundingRateValue);
-
-                    // 如果资金费率为正，说明市场倾向于多头，可能适合开多
-                    if (fundingRateValue.compareTo(BigDecimal.ZERO) > 0) {
-                        log.info("Market is long-biased; considering long position for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("BUY").info("asd").build());
-                    }
-                    // 如果资金费率为负，说明市场倾向于空头，可能适合开空
-                    else if (fundingRateValue.compareTo(BigDecimal.ZERO) < 0) {
-                        log.info("Market is short-biased; considering short position for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("SELL").info("").build());
-                    }
-                    return Mono.just(StrategyResult.builder().symbol(symbol).side("HOLD").info("").build());
-                });
-    }
-    public Mono<StrategyResult> volumePriceAnalysis(String symbol) {
-        return fetchOrderBookDepth(symbol)
-                .flatMap(orderBook -> {
-                    List<List<String>> bids = orderBook.getBids();
-                    List<List<String>> asks = orderBook.getAsks();
-
-                    BigDecimal totalBidVolume = calculateTotalDepth(bids);
-                    BigDecimal totalAskVolume = calculateTotalDepth(asks);
-
-                    log.info("Total Bid Volume: {}, Total Ask Volume: {}", totalBidVolume, totalAskVolume);
-
-                    if (totalBidVolume.compareTo(totalAskVolume.multiply(BigDecimal.valueOf(1.5))) > 0) {
-                        log.info("High buy pressure detected for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("BUY").info("").build());
-                    } else if (totalAskVolume.compareTo(totalBidVolume.multiply(BigDecimal.valueOf(1.5))) > 0) {
-                        log.info("High sell pressure detected for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("SELL").info("").build());
-                    }
-                    return Mono.just(StrategyResult.builder().symbol(symbol).side("HOLD").info("").build());
-                });
+    private BigDecimal calculatePriceSpread(List<List<String>> bids, List<List<String>> asks) {
+        BigDecimal highestBid = new BigDecimal(bids.get(0).get(0)); // 最高买价
+        BigDecimal lowestAsk = new BigDecimal(asks.get(0).get(0));  // 最低卖价
+        return lowestAsk.subtract(highestBid).abs(); // 计算买卖价差
     }
 
-    public Mono<StrategyResult> dynamicPriceAdjust(String symbol) {
-        return fetchOrderBookDepth(symbol)
-                .flatMap(orderBook -> {
-                    List<List<String>> bids = orderBook.getBids();
-                    List<List<String>> asks = orderBook.getAsks();
 
-                    BigDecimal avgPrice = calculateAveragePrice(bids, asks);
-                    BigDecimal volatilityFactor = BigDecimal.valueOf(0.01); // 3%波动因子
-
-                    BigDecimal upperBound = avgPrice.multiply(BigDecimal.ONE.add(volatilityFactor));
-                    BigDecimal lowerBound = avgPrice.multiply(BigDecimal.ONE.subtract(volatilityFactor));
-
-                    log.info("Dynamic Price Range for {}: Lower Bound = {}, Upper Bound = {} , avgPrice = {}", symbol, lowerBound, upperBound,avgPrice);
-
-                    BigDecimal bestBidPrice = new BigDecimal(bids.get(0).get(0));
-                    BigDecimal bestAskPrice = new BigDecimal(asks.get(0).get(0));
-
-                    if (bestBidPrice.compareTo(lowerBound) > 0) {
-                        log.info("Adjusted range indicates buy for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("BUY").info("").build());
-                    } else if (bestAskPrice.compareTo(upperBound) < 0) {
-                        log.info("Adjusted range indicates sell for {}", symbol);
-                        return Mono.just(StrategyResult.builder().symbol(symbol).side("SELL").info("").build());
-                    }
-                    return Mono.just(StrategyResult.builder().symbol(symbol).side("HOLD").info("").build());
-                });
-    }
 
 
 
@@ -259,7 +237,6 @@ public class OrderBookDepthStrategy {
 //                    return Mono.empty();
 //                });
 //    }
-
 
 
 }

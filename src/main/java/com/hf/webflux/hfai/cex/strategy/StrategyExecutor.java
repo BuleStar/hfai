@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+
 @Slf4j
 @Service
 public class StrategyExecutor {
@@ -19,13 +20,10 @@ public class StrategyExecutor {
 
     @Autowired
     private OrderBookDepthStrategy orderBookDepthStrategy;
+
     public Mono<Void> runStrategies(String symbol) {
         List<Mono<StrategyResult>> strategies = List.of(
-                executeOrderBookDepthStrategy(symbol),
-                executeAvgPriceStrategy(symbol),
-                analyzeFundingRate(symbol),
-                volumePriceAnalysis(symbol), // Add more strategies as needed
-                dynamicPriceAdjust(symbol)
+                executeOrderBookDepthStrategy(symbol)
         );
 
         return strategyEvaluator.executeFinalStrategy(strategies)
@@ -36,28 +34,16 @@ public class StrategyExecutor {
                         case "SELL":
                             return executeSellOrder(symbol);
                         default:
+                            log.info("No action taken for symbol: {}", symbol);
                             return Mono.empty();  // Do nothing for "NULL"
                     }
                 });
     }
 
-    private Mono<StrategyResult> executeOrderBookDepthStrategy(String symbol) { 
+    private Mono<StrategyResult> executeOrderBookDepthStrategy(String symbol) {
         return orderBookDepthStrategy.executeOrderBookDepthStrategy(symbol);
     }
 
-    private Mono<StrategyResult> executeAvgPriceStrategy(String symbol) { 
-        return orderBookDepthStrategy.executeAvgPriceStrategy(symbol);
-    }
-
-    private Mono<StrategyResult> analyzeFundingRate(String symbol) { 
-        return orderBookDepthStrategy.analyzeFundingRate(symbol);
-    }
-    private Mono<StrategyResult> volumePriceAnalysis(String symbol) { 
-        return orderBookDepthStrategy.volumePriceAnalysis(symbol);
-    }
-    private Mono<StrategyResult> dynamicPriceAdjust(String symbol) { 
-        return orderBookDepthStrategy.dynamicPriceAdjust(symbol);
-    }
 
     // Example methods for buy/sell actions
     private Mono<Void> executeBuyOrder(String symbol) {

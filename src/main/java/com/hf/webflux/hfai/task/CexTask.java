@@ -21,7 +21,7 @@ public class CexTask {
     private final BinanceService binanceService;
 
     private final StrategyExecutor strategyExecutor;
-    @Scheduled(cron = " */5 * * * * *")
+//    @Scheduled(cron = " */5 * * * * *")
     public void getNewMarketPrice() {
         LinkedHashMap<String, Object> parameters =new LinkedHashMap<>();
         parameters.put("symbol", "BTCUSDT");
