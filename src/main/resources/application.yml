@@ -6,7 +6,7 @@ spring:
     data:
         redis:
             database: 15
-            host: 192.168.1.102
+            host: 192.168.1.101
             port: 6379
             password:
             jedis:
@@ -16,7 +16,7 @@ spring:
                     min-idle: 5
                     max-idle: 8
     datasource:
-        url: jdbc:mysql://192.168.1.102:3306/mall
+        url: jdbc:mysql://192.168.1.101:3306/mall
         username: root
         password: 1q2w3e4r
         driver-class-name: com.mysql.cj.jdbc.Driver

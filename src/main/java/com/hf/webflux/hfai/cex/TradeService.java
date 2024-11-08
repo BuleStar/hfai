@@ -13,9 +13,11 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Slf4j
@@ -26,8 +28,6 @@ public class TradeService {
     @Autowired
     private BinanceService binanceService;
 
-    @Autowired
-    private OrdersService ordersService;
 
 
     public Mono<Void> buy(MyOrder myOrder) {
@@ -48,6 +48,22 @@ public class TradeService {
         return reactiveRedisTemplate.opsForValue().get(redisKey)
                 .flatMap(o -> reactiveRedisTemplate.opsForValue().set(redisKey, myOrder)).then();
     }
+
+    public Mono<Void> newOrder(BinanceOrderRequest orderRequest) {
+
+        BinanceOrderRequest binanceOrderRequest = BinanceOrderRequest.builder()
+                .symbol("BTCUSDT")
+                .side(BinanceOrderRequest.Side.SELL)
+                .type(BinanceOrderRequest.Type.MARKET)
+                .quantity(new BigDecimal("20000"))
+                .timestamp(System.currentTimeMillis())
+                .build();
+
+
+        return Mono.empty();
+    }
+
+
     /**
      * 获取所有键中包含特定字符的键及其对应的值
      * @param pattern 字符匹配模式（例如 "*substring*" 表示包含 "substring" 的键）

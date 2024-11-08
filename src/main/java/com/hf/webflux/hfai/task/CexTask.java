@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.cex.strategy.FundingRateStrategyService;
 import com.hf.webflux.hfai.cex.strategy.OrderBookDepthStrategy;
+import com.hf.webflux.hfai.cex.strategy.StrategyExecutor;
 import com.hf.webflux.hfai.cex.vo.BinanceRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +19,8 @@ import java.util.LinkedHashMap;
 public class CexTask {
 
     private final BinanceService binanceService;
-    private final FundingRateStrategyService fundingRateStrategyService;
-    private final OrderBookDepthStrategy orderBookDepthStrategy;
 
+    private final StrategyExecutor strategyExecutor;
     @Scheduled(cron = " */5 * * * * *")
     public void getNewMarketPrice() {
         LinkedHashMap<String, Object> parameters =new LinkedHashMap<>();
@@ -51,6 +51,6 @@ public class CexTask {
 
     @Scheduled(cron = "*/10 * * * * *")
     public void executeOrderBookDepthStrategy() {
-        orderBookDepthStrategy.executeOrderBookDepthStrategy("BTCUSDT").subscribe();
+        strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
 }

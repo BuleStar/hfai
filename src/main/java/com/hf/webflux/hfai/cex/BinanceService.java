@@ -10,6 +10,7 @@ import com.hf.webflux.hfai.cex.vo.FundingRate;
 import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
 import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.TickerSymbolResult;
+import com.hf.webflux.hfai.entity.Orders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,7 @@ public class BinanceService {
 
     @Autowired
     private UMFuturesClientImpl futuresClient;
-
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private <T> Mono<T> handleErrors(Supplier<Mono<T>> supplier, String methodName, LinkedHashMap<String, Object> parameters) {
         return supplier.get()
 //                .doOnSuccess(result -> log.info("Success in {}: {}", methodName, result))
@@ -109,13 +110,29 @@ public class BinanceService {
         );
     }
 
-    private OrderBook parseOrderBook(String data) {
-        ObjectMapper mapper = new ObjectMapper();
+    public Mono<Orders> newOrder(LinkedHashMap<String, Object> parameters) {
+        return handleErrors(() ->
+                        Mono.fromCallable(() -> futuresClient.account().newOrder(parameters))
+                                .map(this::parseOrders) ,// 使用 map 方法将 JSON 转换为 OrderBook
+//                                .doOnSuccess(orderBook -> log.info("Success in getDepth: {}", orderBook)),
+                "newOrder", parameters
+        );
+    }
+    private <T> T parseData(String data, Class<T> clazz) {
         try {
-            return mapper.readValue(data, OrderBook.class);
+            return OBJECT_MAPPER.readValue(data, clazz);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to parse order book data", e);
+            log.error("Failed to parse data: {}", data, e);
+            throw new RuntimeException("Failed to parse data", e);
         }
+    }
+
+    private Orders parseOrders(String data) {
+        return parseData(data, Orders.class);
+    }
+
+    private OrderBook parseOrderBook(String data) {
+        return parseData(data, OrderBook.class);
     }
 
     private <T> Mono<T> parseJson(String json, Class<T> clazz) {
