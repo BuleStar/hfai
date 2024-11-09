@@ -11,8 +11,8 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 public class MyTelegramBot extends TelegramLongPollingBot {
 
-    private final String botToken = "7708677995:AAFVJg9xhUc9BoosbtftQuHSFWc-nVpNMEQ";
-    private final String botUsername = "crf_info_bot";
+    private final String botToken = "";
+    private final String botUsername = "";
 
     @Override
     public void onUpdateReceived(Update update) {
