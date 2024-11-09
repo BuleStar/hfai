@@ -7,6 +7,7 @@ import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
 import com.hf.webflux.hfai.cex.vo.MyOrder;
 import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.StrategyResult;
+import com.hf.webflux.hfai.event.EventPublisherService;
 import com.hf.webflux.hfai.tg.TelegramBotService;
 import dev.ai4j.openai4j.Json;
 import lombok.extern.slf4j.Slf4j;
@@ -33,9 +34,7 @@ public class OrderBookDepthStrategy {
     @Autowired
     private TradeService tradeService;
     @Autowired
-    private TelegramBotService telegramBotService;
-    @Value("${telegram.chatId}")
-    private String chatId;
+    private EventPublisherService eventPublisherService;
     // 设置深度阈值
     private static final BigDecimal BUY_DEPTH_RATIO_THRESHOLD = new BigDecimal("4.5");  // 示例值，实际可根据策略调整
     private static final BigDecimal SELL_DEPTH_RATIO_THRESHOLD = new BigDecimal("0.5");  // 示例值，实际可根据策略调整
@@ -145,7 +144,7 @@ public class OrderBookDepthStrategy {
         map.put("fundingRate", fundingRate);
         map.put("upperBound", upperBound);
         map.put("lowerBound", lowerBound);
-        return Mono.fromRunnable(() -> telegramBotService.sendMessage(chatId, Json.toJson(map)));
+        return Mono.fromRunnable(() -> eventPublisherService.publishCustomEvent(Json.toJson(map)));
     }
 
     private boolean shouldBuy(BigDecimal buySellDepthRatio, BigDecimal bestBidPrice,
