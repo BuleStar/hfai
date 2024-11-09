@@ -69,3 +69,5 @@ logging:
             ai4j:
                 openai4j: DEBUG
             changing4j: DEBUG
+telegram:
+    chatId: 5759121743

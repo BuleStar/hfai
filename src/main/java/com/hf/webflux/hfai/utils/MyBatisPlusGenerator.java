@@ -45,6 +45,7 @@ public class MyBatisPlusGenerator {
                             //启用Lombok插件
                             .enableLombok()
                             .enableTableFieldAnnotation()
+
                             .versionColumnName("version")
                             .logicDeleteColumnName("is_delete")
                             //设置字段名的命名策略为下划线转驼峰命名

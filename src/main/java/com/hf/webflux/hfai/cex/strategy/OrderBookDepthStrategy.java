@@ -7,8 +7,11 @@ import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
 import com.hf.webflux.hfai.cex.vo.MyOrder;
 import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.StrategyResult;
+import com.hf.webflux.hfai.tg.TelegramBotService;
+import dev.ai4j.openai4j.Json;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -16,6 +19,7 @@ import reactor.util.function.Tuple2;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +32,12 @@ public class OrderBookDepthStrategy {
     private BinanceService binanceService;
     @Autowired
     private TradeService tradeService;
+    @Autowired
+    private TelegramBotService telegramBotService;
+    @Value("${telegram.chatId}")
+    private String chatId;
     // 设置深度阈值
-    private static final BigDecimal BUY_DEPTH_RATIO_THRESHOLD = new BigDecimal("2.6");  // 示例值，实际可根据策略调整
+    private static final BigDecimal BUY_DEPTH_RATIO_THRESHOLD = new BigDecimal("4.5");  // 示例值，实际可根据策略调整
     private static final BigDecimal SELL_DEPTH_RATIO_THRESHOLD = new BigDecimal("0.5");  // 示例值，实际可根据策略调整
 
 
@@ -97,11 +105,19 @@ public class OrderBookDepthStrategy {
                             fundingRate,
                             upperBound,
                             lowerBound
-                    ));
-
+                    )).flatMap(strategyResult -> {
+                                if (strategyResult.getSide().equals("BUY") || strategyResult.getSide().equals("SELL")) {
+                                    return sendMessage(symbol,strategyResult.getSide(), buySellDepthRatio, bestBidPrice, bestAskPrice, fundingRate, upperBound, lowerBound)
+                                            .then(Mono.just(strategyResult));
+                                } else {
+                                    return Mono.just(strategyResult);
+                                }
+                            }
+                    );
                 });
 
     }
+
     private BigDecimal calculateDepthRatio(BigDecimal totalBidDepth, BigDecimal totalAskDepth) {
         return totalBidDepth.divide(totalAskDepth, 2, BigDecimal.ROUND_HALF_UP);
     }
@@ -119,6 +135,19 @@ public class OrderBookDepthStrategy {
         }
     }
 
+    private Mono<Void> sendMessage(String symbol,String side, BigDecimal buySellDepthRatio, BigDecimal bestBidPrice, BigDecimal bestAskPrice, BigDecimal fundingRate, BigDecimal upperBound, BigDecimal lowerBound) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("symbol", symbol);
+        map.put("side", side);
+        map.put("buySellDepthRatio", buySellDepthRatio);
+        map.put("bestAskPrice", bestAskPrice);
+        map.put("bestBidPrice", bestBidPrice);
+        map.put("fundingRate", fundingRate);
+        map.put("upperBound", upperBound);
+        map.put("lowerBound", lowerBound);
+        return Mono.fromRunnable(() -> telegramBotService.sendMessage(chatId, Json.toJson(map)));
+    }
+
     private boolean shouldBuy(BigDecimal buySellDepthRatio, BigDecimal bestBidPrice,
                               BigDecimal fundingRate, BigDecimal lowerBound) {
         return buySellDepthRatio.compareTo(BUY_DEPTH_RATIO_THRESHOLD) > 0
@@ -134,8 +163,6 @@ public class OrderBookDepthStrategy {
                 && fundingRate.compareTo(BigDecimal.ZERO) < 0
                 && buySellDepthRatio.compareTo(VOLUME_RATIO_THRESHOLD) < 0;
     }
-
-
 
 
     /**
@@ -194,9 +221,6 @@ public class OrderBookDepthStrategy {
         BigDecimal lowestAsk = new BigDecimal(asks.get(0).get(0));  // 最低卖价
         return lowestAsk.subtract(highestBid).abs(); // 计算买卖价差
     }
-
-
-
 
 
     private BigDecimal calculateAveragePrice(List<List<String>> bids, List<List<String>> asks) {
