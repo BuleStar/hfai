@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 
 
@@ -56,7 +57,7 @@ public class CexTask {
 
     @Scheduled(cron = "*/10 * * * * *")
     public void executeTrendFollowingStrategy() {
-        trendFollowingStrategy.runStrategy("BTCUSDT",Interval.FIFTEEN_MINUTES.getValue(), 1000).subscribe();
+        trendFollowingStrategy.runStrategy("BTCUSDT",Interval.FIFTEEN_MINUTES.getValue(), 1000, Duration.ofMinutes(15)).subscribe();
     }
 
 }

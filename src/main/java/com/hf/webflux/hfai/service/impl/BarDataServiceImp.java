@@ -24,6 +24,7 @@ public class BarDataServiceImp extends ServiceImpl<BarDataMapper, BarData> imple
         LambdaUpdateWrapper<BarData> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
         lambdaUpdateWrapper.eq(BarData::getBeginTime, barData.getBeginTime());
         lambdaUpdateWrapper.eq(BarData::getEndTime, barData.getEndTime());
+        lambdaUpdateWrapper.eq(BarData::getTimePeriod, barData.getTimePeriod());
         BarData result = baseMapper.selectOne(lambdaUpdateWrapper);
         if (result != null) {
             baseMapper.update(barData, lambdaUpdateWrapper);
