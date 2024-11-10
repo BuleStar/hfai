@@ -88,19 +88,19 @@ public class TrendFollowingStrategy {
 
         // 动量指标（RSI 和 ADX）
         RSIIndicator rsi = new RSIIndicator(closePrice, 14);
-        ADXIndicator adx = new ADXIndicator(series, 14);
+        ADXIndicator adx = new ADXIndicator(series, 25);
 
         // 买入规则：短期均线上穿长期均线，ADX > 25 表示趋势较强，且 RSI < 70 避免超买
         Rule entryRule = new CrossedUpIndicatorRule(shortEma, longEma)  // EMA 黄金交叉
-                .and(new OverIndicatorRule(adx, series.numOf(25)))      // ADX > 25
+                .and(new OverIndicatorRule(adx, series.numOf(21)))      // ADX > 25
                 .and(new UnderIndicatorRule(rsi, series.numOf(70)));    // RSI < 70
 
         // 卖出规则：短期均线下穿长期均线，ADX > 25 表示趋势较强，且 RSI > 30 避免过早卖出
         Rule exitRule = new CrossedDownIndicatorRule(shortEma, longEma) // EMA 死叉
                 .and(new OverIndicatorRule(adx, series.numOf(25)))      // ADX > 25
-                .and(new OverIndicatorRule(rsi, series.numOf(30)))      // RSI > 30
+                .and(new OverIndicatorRule(rsi, series.numOf(25)))      // RSI > 30
                 .or(new StopLossRule(closePrice,stopLossThreshold))  // 动态止损
-                .or(new StopGainRule(closePrice, series.numOf(1.05)))   // 止盈5%
+                .or(new StopGainRule(closePrice, series.numOf(3.05)))   // 止盈5%
                 .or(new CrossedDownIndicatorRule(closePrice, parabolicSar)); // 抛物线反转信号
 
         return Mono.just(new BaseStrategy(entryRule, exitRule));
