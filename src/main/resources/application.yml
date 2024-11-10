@@ -46,7 +46,7 @@ mybatis-plus:
         use-generated-keys: true
         default-executor-type: REUSE
         use-actual-param-name: true
-        log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 输出SQL log 方便 debug
+#        log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 输出SQL log 方便 debug
 user:
     expireTimeInSeconds: 360
 cache:

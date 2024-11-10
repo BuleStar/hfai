@@ -54,9 +54,9 @@ public class CexTask {
         strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
 
-    @Scheduled(cron = "*/5 * * * * *")
+    @Scheduled(cron = "*/10 * * * * *")
     public void executeTrendFollowingStrategy() {
-        trendFollowingStrategy.runStrategy("BTCUSDT",Interval.ONE_DAY.getValue(), 500).subscribe();
+        trendFollowingStrategy.runStrategy("BTCUSDT",Interval.FIFTEEN_MINUTES.getValue(), 1000).subscribe();
     }
 
 }

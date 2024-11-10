@@ -1,27 +1,29 @@
 package com.hf.webflux.hfai.event;
 
-import com.hf.webflux.hfai.tg.TelegramBotService;
+import com.hf.webflux.hfai.service.BarDataService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Component
-public class CustomEventListener {
+public class BarDataEventListener {
 
     @Autowired
-    private TelegramBotService telegramBotService;
-    @Value("${telegram.chatId}")
-    private String chatId;
+    private BarDataService barDataService;
+
+    @Async("asyncExecutor")
     @EventListener
-    public void handleCustomEvent(CustomEvent event) {
-        System.out.println("Received custom event - " + event.getMessage());
+    public void handleBarDataEvent(BarDataEvent event) {
+//        log.info("Received BarData event - {}", event.getMessage());
         // Here you can add reactive processing if needed
-        Mono.just(event.getMessage())
+        Mono.just(event.getBarData())
                 .doOnNext(message -> {
                     // Process the event asynchronously if needed
-                    telegramBotService.sendMessage(chatId, message);
+                    barDataService.saveOrUpdateByTime(message);
                 })
                 .subscribe();
     }

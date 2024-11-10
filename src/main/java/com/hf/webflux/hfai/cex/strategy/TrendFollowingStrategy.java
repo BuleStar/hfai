@@ -2,21 +2,29 @@ package com.hf.webflux.hfai.cex.strategy;
 
 import cn.hutool.core.date.DateUtil;
 import com.hf.webflux.hfai.cex.BinanceService;
+import com.hf.webflux.hfai.cex.data.DataFetcherService;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.*;
-import org.ta4j.core.BarSeriesManager;
-import org.ta4j.core.analysis.criteria.pnl.NetProfitCriterion;
+import org.ta4j.core.backtest.BarSeriesManager;
+import org.ta4j.core.criteria.pnl.ReturnCriterion;
 import org.ta4j.core.indicators.*;
 import org.ta4j.core.indicators.adx.ADXIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
+import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 import org.ta4j.core.rules.*;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,87 +34,57 @@ import java.util.stream.Collectors;
 @Service
 public class TrendFollowingStrategy {
 
+
+    // 参数设置
+    private static final int SHORT_EMA_PERIOD = 10; // 短期 EMA
+    private static final int LONG_EMA_PERIOD = 30;  // 长期 EMA
+    private static final int RSI_PERIOD = 14;       // RSI 周期
+    private static final int ADX_PERIOD = 14;       // ADX 周期
+    private static final int ATR_PERIOD = 14;       // ATR 周期
+    private static final Num RSI_OVERBOUGHT = DecimalNum.valueOf(70); // RSI 超买
+    private static final Num RSI_OVERSOLD = DecimalNum.valueOf(30);   // RSI 超卖
+    private static final Num ADX_THRESHOLD = DecimalNum.valueOf(25);  // ADX 阈值
+    private static final Num ATR_MULTIPLIER = DecimalNum.valueOf(1.5); // ATR 止损倍数
+
     @Autowired
-    private BinanceService binanceService;
+    private DataFetcherService dataFetcherService;
 
-    public Mono<List<Bar>> getKlineData(String symbol, String interval, int limit) {
-        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
-        Date now = new Date();
-        Long startTime = DateUtil.offsetDay(now, -50).getTime();
-        Long endTime = now.getTime();
-        parameters.put("symbol", symbol);
-        parameters.put("interval", interval);
-        parameters.put("limit", limit);
-        parameters.put("startTime", startTime);
-        parameters.put("endTime", endTime);
-        log.info("参数：{}", parameters);
-        return binanceService.getKlines(parameters)
-                .map(data -> data.stream()
-                        .map(this::parseKlineData)
-                        .collect(Collectors.toList()));
-    }
-
-    private Bar parseKlineData(List<Object> klineData) {
-        // 确保 klineData.get(0) 是一个可以解析为 long 类型的字符串
-        String timestampStr = klineData.get(0).toString();
-        long timestamp = Long.parseLong(timestampStr);
-
-        // 使用 Hutool 的 DateUtil 将时间戳转换为 Date 对象
-        String formattedDate = DateUtil.format(new Date(timestamp), "yyyy-MM-dd'T'HH:mm:ss'Z'");
-
-        // 解析 klineData 并返回 Bar 对象
-        return new BaseBar(Duration.ofDays(1),
-                ZonedDateTime.parse(formattedDate),
-                Double.parseDouble(String.valueOf(klineData.get(1))),
-                Double.parseDouble(String.valueOf(klineData.get(2))),
-                Double.parseDouble(String.valueOf(klineData.get(3))),
-                Double.parseDouble(String.valueOf(klineData.get(4))),
-                Double.parseDouble(String.valueOf(klineData.get(5))),
-                Double.parseDouble(String.valueOf(klineData.get(7))));
-    }
 
     // 加载数据的辅助方法
     private Mono<BarSeries> loadData(String symbol, String interval, int limit) {
         // 示例：构建一系列假数据
-        return getKlineData(symbol, interval, limit).flatMap(bars -> Mono.just(new BaseBarSeries("TrendData", bars)));
+        return dataFetcherService.getKlineData(symbol, interval, limit).map(bars -> new BaseBarSeriesBuilder().withName("TrendData").withBars(bars).build());
     }
 
     public Mono<Strategy> buildTrendFollowingStrategy(BarSeries series) {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
 
-        // 移动平均线（EMA）
-        EMAIndicator shortEma = new EMAIndicator(closePrice, 5);  // 短期 EMA 单位天
-        EMAIndicator longEma = new EMAIndicator(closePrice, 20);   // 长期 EMA
+        // 指标初始化
+        EMAIndicator shortEma = new EMAIndicator(closePrice, SHORT_EMA_PERIOD);
+        EMAIndicator longEma = new EMAIndicator(closePrice, LONG_EMA_PERIOD);
+        RSIIndicator rsi = new RSIIndicator(closePrice, RSI_PERIOD);
+        ADXIndicator adx = new ADXIndicator(series, ADX_PERIOD);
+        ATRIndicator atr = new ATRIndicator(series, ATR_PERIOD);
 
-        // 平均真实波动率（ATR）
-        ATRIndicator atr = new ATRIndicator(series, 14);
-//        stopLossThreshold 表示一个以当前收盘价为基准的止损价格，通过 ATR 的倍数调整。
-//        closePrice.getValue(series.getEndIndex()) 获取当前的收盘价，减去 ATR 的倍数结果后作为止损价格
-        Num stopLossThreshold = closePrice.getValue(series.getEndIndex()).minus(atr.getValue(series.getEndIndex()).multipliedBy(series.numOf(2.0)));
-        // 抛物线转向指标（Parabolic SAR）
-        ParabolicSarIndicator parabolicSar = new ParabolicSarIndicator(series);
+        // 动态止损阈值
+        Num stopLossThreshold = closePrice.getValue(series.getEndIndex())
+                .minus(atr.getValue(series.getEndIndex()).multipliedBy(ATR_MULTIPLIER));
 
-        // 动量指标（RSI 和 ADX）
-        RSIIndicator rsi = new RSIIndicator(closePrice, 14);
-        ADXIndicator adx = new ADXIndicator(series, 25);
+        // 买入规则：短期 EMA 上穿长期 EMA，ADX > 阈值，且 RSI < 70
+        Rule entryRule = new CrossedUpIndicatorRule(shortEma, longEma)   // 黄金交叉
+                .and(new OverIndicatorRule(adx, ADX_THRESHOLD))         // 趋势强度
+                .and(new UnderIndicatorRule(rsi, RSI_OVERBOUGHT));      // 避免超买
 
-        // 买入规则：短期均线上穿长期均线，ADX > 25 表示趋势较强，且 RSI < 70 避免超买
-        Rule entryRule = new CrossedUpIndicatorRule(shortEma, longEma)  // EMA 黄金交叉
-                .and(new OverIndicatorRule(adx, series.numOf(21)))      // ADX > 25
-                .and(new UnderIndicatorRule(rsi, series.numOf(70)));    // RSI < 70
-
-        // 卖出规则：短期均线下穿长期均线，ADX > 25 表示趋势较强，且 RSI > 30 避免过早卖出
-        Rule exitRule = new CrossedDownIndicatorRule(shortEma, longEma) // EMA 死叉
-                .and(new OverIndicatorRule(adx, series.numOf(25)))      // ADX > 25
-                .and(new OverIndicatorRule(rsi, series.numOf(25)))      // RSI > 30
-                .or(new StopLossRule(closePrice,stopLossThreshold))  // 动态止损
-                .or(new StopGainRule(closePrice, series.numOf(3.05)))   // 止盈5%
-                .or(new CrossedDownIndicatorRule(closePrice, parabolicSar)); // 抛物线反转信号
+        // 卖出规则：短期 EMA 下穿长期 EMA，ADX > 阈值，或 RSI > 30，或触发动态止损
+        Rule exitRule = new CrossedDownIndicatorRule(shortEma, longEma) // 死叉
+                .and(new OverIndicatorRule(adx, ADX_THRESHOLD))
+                .or(new OverIndicatorRule(rsi, RSI_OVERSOLD))          // RSI > 30
+                .or(new StopLossRule(closePrice, stopLossThreshold));  // 动态止损
 
         return Mono.just(new BaseStrategy(entryRule, exitRule));
     }
 
-//    public  Mono<Void> runStrategy(String symbol, String interval, int limit) {
+    //    public  Mono<Void> runStrategy(String symbol, String interval, int limit) {
 //        // 加载数据并初始化 BarSeries
 //        BarSeries series = loadData(symbol, interval, limit);
 //        // 构建趋势跟随策略
@@ -132,12 +110,23 @@ public class TrendFollowingStrategy {
                             BarSeriesManager seriesManager = new BarSeriesManager(series);
                             TradingRecord tradingRecord = seriesManager.run(strategy);
                             log.info("交易记录: {}", tradingRecord);
-                            // 计算并打印总利润
-                            NetProfitCriterion netProfitCriterion = new NetProfitCriterion();
-                            Num totalProfit = netProfitCriterion.calculate(series, tradingRecord);
-                            log.info("Total Profit: {}", totalProfit);
+                            // 使用 ReturnCriterion 计算总收益率
+                            ReturnCriterion returnCriterion = new ReturnCriterion();
+                            Num totalReturn = returnCriterion.calculate(series, tradingRecord);
+                            log.info("Total Return: {}", totalReturn);
+                            // 检查最新的 K 线数据是否触发交易信号
+                            int endIndex = series.getEndIndex();
+                            if (strategy.shouldEnter(endIndex)) {
+                                series.getLastBar().getOpenPrice();
+                                System.out.println("建议买入 (Index: " + endIndex + ")");
+                            } else if (strategy.shouldExit(endIndex)) {
+                                System.out.println("建议卖出 (Index: " + endIndex + ")");
+                            } else {
+                                System.out.println("无交易信号 (Index: " + endIndex + ")");
+                            }
                             return Mono.empty();
                         })
                 );
     }
+
 }

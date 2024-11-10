@@ -1,7 +1,9 @@
 package com.hf.webflux.hfai.event;
 
+import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
+@Getter
 public class CustomEvent extends ApplicationEvent {
     private final String message;
 
@@ -10,8 +12,5 @@ public class CustomEvent extends ApplicationEvent {
         this.message = message;
     }
 
-    public String getMessage() {
-        return message;
-    }
 }
 
