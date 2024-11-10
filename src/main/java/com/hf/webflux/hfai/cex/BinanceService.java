@@ -76,8 +76,9 @@ public class BinanceService {
      * endTime	LONG	NO	结束时间
      * limit	INT	NO	默认值:500 最大值:1500
      */
-    public Mono<String> getKlines(LinkedHashMap<String, Object> parameters) {
+    public Mono<List<List<Object>>> getKlines(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().klines(parameters))
+                        .map(data -> parseData(data, List.class))
 //                        .doOnSuccess(data -> log.info("Success in getKlines: {}", data))
                 , "getKlines", parameters);
     }
@@ -144,4 +145,6 @@ public class BinanceService {
             return Mono.error(new RuntimeException("JSON parsing error", e));
         }
     }
+
+
 }

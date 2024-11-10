@@ -1,17 +1,16 @@
 package com.hf.webflux.hfai.task;
 
-import cn.hutool.core.date.DateUtil;
 import com.hf.webflux.hfai.cex.BinanceService;
-import com.hf.webflux.hfai.cex.strategy.FundingRateStrategyService;
-import com.hf.webflux.hfai.cex.strategy.OrderBookDepthStrategy;
+import com.hf.webflux.hfai.cex.constant.Interval;
 import com.hf.webflux.hfai.cex.strategy.StrategyExecutor;
-import com.hf.webflux.hfai.cex.vo.BinanceRequest;
+import com.hf.webflux.hfai.cex.strategy.TrendFollowingStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+
 
 @Slf4j
 @RequiredArgsConstructor
@@ -21,6 +20,7 @@ public class CexTask {
     private final BinanceService binanceService;
 
     private final StrategyExecutor strategyExecutor;
+    private final TrendFollowingStrategy trendFollowingStrategy;
 //    @Scheduled(cron = " */5 * * * * *")
     public void getNewMarketPrice() {
         LinkedHashMap<String, Object> parameters =new LinkedHashMap<>();
@@ -53,4 +53,10 @@ public class CexTask {
     public void executeOrderBookDepthStrategy() {
         strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
+
+    @Scheduled(cron = "*/5 * * * * *")
+    public void executeTrendFollowingStrategy() {
+        trendFollowingStrategy.runStrategy("BTCUSDT",Interval.ONE_DAY.getValue(), 500).subscribe();
+    }
+
 }
