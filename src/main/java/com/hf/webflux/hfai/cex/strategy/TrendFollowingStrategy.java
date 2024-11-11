@@ -26,18 +26,18 @@ public class TrendFollowingStrategy {
 
 
     // 参数设置
-    private static final int SHORT_EMA_PERIOD = 9; // 短期 EMA
-    private static final int LONG_EMA_PERIOD = 21;  // 长期 EMA
-    private static final int RSI_PERIOD = 14;       // RSI 周期
-    private static final int ADX_PERIOD = 20;       // ADX 周期
-    private static final int ATR_PERIOD = 14;       // ATR 周期
-    private static final int BOLLINGER_PERIOD = 10;  // 布林带周期
+    private static final int SHORT_EMA_PERIOD = 10; // 短期 EMA
+    private static final int LONG_EMA_PERIOD = 20;  // 长期 EMA
+    private static final int RSI_PERIOD = 12;       // RSI 周期
+    private static final int ADX_PERIOD = 12;       // ADX 周期
+    private static final int ATR_PERIOD = 20;       // ATR 周期
+    private static final int BOLLINGER_PERIOD = 20;  // 布林带周期
 
     private static final Num RSI_OVERBOUGHT = DecimalNum.valueOf(70); // RSI 超买
     private static final Num RSI_OVERSOLD = DecimalNum.valueOf(30);   // RSI 超卖
-    private static final Num ADX_THRESHOLD = DecimalNum.valueOf(20);  // ADX 阈值
+    private static final Num ADX_THRESHOLD = DecimalNum.valueOf(10);  // ADX 阈值
     private static final Num ATR_MULTIPLIER = DecimalNum.valueOf(1.5); // ATR 止损倍数
-    private static final Num BOLLINGER_MULTIPLIER = DecimalNum.valueOf(1.7); // 布林带倍数
+    private static final Num BOLLINGER_MULTIPLIER = DecimalNum.valueOf(2.0); // 布林带倍数
     @Autowired
     private DataFetcherService dataFetcherService;
 
@@ -56,7 +56,7 @@ public class TrendFollowingStrategy {
         EMAIndicator longEma = new EMAIndicator(closePrice, LONG_EMA_PERIOD);
         RSIIndicator rsi = new RSIIndicator(closePrice, RSI_PERIOD);
         ADXIndicator adx = new ADXIndicator(series, ADX_PERIOD);
-        ATRIndicator atr = new ATRIndicator(series, ATR_PERIOD);
+//        ATRIndicator atr = new ATRIndicator(series, ATR_PERIOD);
         SMAIndicator sma = new SMAIndicator(closePrice, BOLLINGER_PERIOD); // 中间线的SMA 布林带指标-相关
 
         // 布林带指标
@@ -64,8 +64,8 @@ public class TrendFollowingStrategy {
         BollingerBandsLowerIndicator lowerBand = new BollingerBandsLowerIndicator(middleBand, closePrice, BOLLINGER_MULTIPLIER);
         BollingerBandsUpperIndicator upperBand = new BollingerBandsUpperIndicator(middleBand, closePrice, BOLLINGER_MULTIPLIER);
         // 动态止损阈值
-        Num stopLossThreshold = closePrice.getValue(series.getEndIndex())
-                .minus(atr.getValue(series.getEndIndex()).multipliedBy(ATR_MULTIPLIER));
+//        Num stopLossThreshold = closePrice.getValue(series.getEndIndex())
+//                .minus(atr.getValue(series.getEndIndex()).multipliedBy(ATR_MULTIPLIER));
 
         // 买入规则：短期 EMA 上穿长期 EMA，ADX > 阈值，且 RSI < 70
         Rule entryRule = new CrossedUpIndicatorRule(shortEma, longEma)   // 黄金交叉
@@ -76,9 +76,9 @@ public class TrendFollowingStrategy {
         // 卖出规则：短期 EMA 下穿长期 EMA，ADX > 阈值，或 RSI > 30，或触发动态止损
         Rule exitRule = new CrossedDownIndicatorRule(shortEma, longEma) // 死叉
                 .and(new OverIndicatorRule(adx, ADX_THRESHOLD))
-                .or(new OverIndicatorRule(rsi, RSI_OVERSOLD))          // RSI > 30
-                .or(new OverIndicatorRule(closePrice, upperBand))           // 布林带上轨
-                .or(new StopLossRule(closePrice, stopLossThreshold));// 动态止损
+                .or(new OverIndicatorRule(rsi, RSI_OVERSOLD))       // RSI > 30
+                .or(new OverIndicatorRule(closePrice, upperBand));         // 布林带上轨
+//                .or(new StopLossRule(closePrice, stopLossThreshold));// 动态止损
 
         return Mono.just(new BaseStrategy(entryRule, exitRule));
     }
