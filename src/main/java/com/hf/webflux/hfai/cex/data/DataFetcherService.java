@@ -33,7 +33,7 @@ public class DataFetcherService{
     public Mono<List<Bar>> getKlineData(String symbol, String interval, int limit,Duration timePeriod) {
         LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
         Date now = new Date();
-        Long startTime = DateUtil.offsetDay(now, -10).getTime();
+        Long startTime = DateUtil.offsetDay(now, -7).getTime();
         Long endTime = now.getTime();
         parameters.put("symbol", symbol);
         parameters.put("interval", interval);

@@ -26,18 +26,20 @@ public class TrendFollowingStrategy {
 
 
     // 参数设置
-    private static final int SHORT_EMA_PERIOD = 10; // 短期 EMA
-    private static final int LONG_EMA_PERIOD = 20;  // 长期 EMA
-    private static final int RSI_PERIOD = 12;       // RSI 周期
+    private static final int SHORT_EMA_PERIOD = 5; // 短期 EMA
+    private static final int LONG_EMA_PERIOD = 200;  // 长期 EMA
+    private static final int RSI_PERIOD = 14;       // RSI 周期
     private static final int ADX_PERIOD = 12;       // ADX 周期
     private static final int ATR_PERIOD = 20;       // ATR 周期
     private static final int BOLLINGER_PERIOD = 20;  // 布林带周期
 
-    private static final Num RSI_OVERBOUGHT = DecimalNum.valueOf(70); // RSI 超买
-    private static final Num RSI_OVERSOLD = DecimalNum.valueOf(30);   // RSI 超卖
+    private static final Num RSI_OVERBOUGHT = DecimalNum.valueOf(5); // RSI 超买
+    private static final Num RSI_OVERSOLD = DecimalNum.valueOf(95);   // RSI 超卖
     private static final Num ADX_THRESHOLD = DecimalNum.valueOf(10);  // ADX 阈值
     private static final Num ATR_MULTIPLIER = DecimalNum.valueOf(1.5); // ATR 止损倍数
     private static final Num BOLLINGER_MULTIPLIER = DecimalNum.valueOf(2.0); // 布林带倍数
+    private static final Num STOCHASTIC_RSI_BUY = DecimalNum.valueOf(0.2); // 布林带倍数
+    private static final Num STOCHASTIC_RSI_SELL = DecimalNum.valueOf(0.8); // 布林带倍数
     @Autowired
     private DataFetcherService dataFetcherService;
 
@@ -45,46 +47,34 @@ public class TrendFollowingStrategy {
     // 加载数据的辅助方法
     private Mono<BarSeries> loadData(String symbol, String interval, int limit, Duration timePeriod) {
         // 示例：构建一系列假数据
-        return dataFetcherService.getKlineData(symbol, interval, limit,timePeriod).map(bars -> new BaseBarSeriesBuilder().withName("TrendData").withBars(bars).build());
+        return dataFetcherService.getKlineData(symbol, interval, limit, timePeriod).map(bars -> new BaseBarSeriesBuilder().withName("TrendData").withBars(bars).build());
     }
 
     public Mono<Strategy> buildTrendFollowingStrategy(BarSeries series) {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
 
-        // 指标初始化
-        EMAIndicator shortEma = new EMAIndicator(closePrice, SHORT_EMA_PERIOD);
-        EMAIndicator longEma = new EMAIndicator(closePrice, LONG_EMA_PERIOD);
-        RSIIndicator rsi = new RSIIndicator(closePrice, RSI_PERIOD);
-        ADXIndicator adx = new ADXIndicator(series, ADX_PERIOD);
-//        ATRIndicator atr = new ATRIndicator(series, ATR_PERIOD);
-        SMAIndicator sma = new SMAIndicator(closePrice, BOLLINGER_PERIOD); // 中间线的SMA 布林带指标-相关
+        EMAIndicator shortEma = new EMAIndicator(closePrice, 9);
+        EMAIndicator longEma = new EMAIndicator(closePrice, 26);
 
-        // 布林带指标
-        BollingerBandsMiddleIndicator middleBand = new BollingerBandsMiddleIndicator(sma);
-        BollingerBandsLowerIndicator lowerBand = new BollingerBandsLowerIndicator(middleBand, closePrice, BOLLINGER_MULTIPLIER);
-        BollingerBandsUpperIndicator upperBand = new BollingerBandsUpperIndicator(middleBand, closePrice, BOLLINGER_MULTIPLIER);
-        // 动态止损阈值
-//        Num stopLossThreshold = closePrice.getValue(series.getEndIndex())
-//                .minus(atr.getValue(series.getEndIndex()).multipliedBy(ATR_MULTIPLIER));
+        StochasticOscillatorKIndicator stochasticOscillK = new StochasticOscillatorKIndicator(series, 14);
 
-        // 买入规则：短期 EMA 上穿长期 EMA，ADX > 阈值，且 RSI < 70
-        Rule entryRule = new CrossedUpIndicatorRule(shortEma, longEma)   // 黄金交叉
-                .and(new OverIndicatorRule(adx, ADX_THRESHOLD))         // 趋势强度
-                .and(new UnderIndicatorRule(rsi, RSI_OVERBOUGHT))
-                .and(new UnderIndicatorRule(closePrice, lowerBand));     // 避免超买
+        MACDIndicator macd = new MACDIndicator(closePrice, 9, 26);
+        EMAIndicator emaMacd = new EMAIndicator(macd, 18);
 
-        // 卖出规则：短期 EMA 下穿长期 EMA，ADX > 阈值，或 RSI > 30，或触发动态止损
-        Rule exitRule = new CrossedDownIndicatorRule(shortEma, longEma) // 死叉
-                .and(new OverIndicatorRule(adx, ADX_THRESHOLD))
-                .or(new OverIndicatorRule(rsi, RSI_OVERSOLD))       // RSI > 30
-                .or(new OverIndicatorRule(closePrice, upperBand));         // 布林带上轨
-//                .or(new StopLossRule(closePrice, stopLossThreshold));// 动态止损
+        // Entry rule
+        Rule entryRule = new OverIndicatorRule(shortEma, longEma) // Trend
+                .and(new CrossedDownIndicatorRule(stochasticOscillK, 20)) // Signal 1
+                .and(new OverIndicatorRule(macd, emaMacd)); // Signal 2
 
+        // Exit rule
+        Rule exitRule = new UnderIndicatorRule(shortEma, longEma) // Trend
+                .and(new CrossedUpIndicatorRule(stochasticOscillK, 80)) // Signal 1
+                .and(new UnderIndicatorRule(macd, emaMacd)); // Signal 2
         return Mono.just(new BaseStrategy(entryRule, exitRule));
     }
 
     public Mono<Void> runStrategy(String symbol, String interval, int limit, Duration timePeriod) {
-        return loadData(symbol, interval, limit,timePeriod)
+        return loadData(symbol, interval, limit, timePeriod)
                 .flatMap(series -> buildTrendFollowingStrategy(series)
                         .flatMap(strategy -> {
                             BarSeriesManager seriesManager = new BarSeriesManager(series);
