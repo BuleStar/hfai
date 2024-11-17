@@ -2,6 +2,7 @@ package com.hf.webflux.hfai.task;
 
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.cex.constant.Interval;
+import com.hf.webflux.hfai.cex.strategy.AdaptiveStrategy;
 import com.hf.webflux.hfai.cex.strategy.StrategyExecutor;
 import com.hf.webflux.hfai.cex.strategy.TrendFollowingStrategy;
 import lombok.RequiredArgsConstructor;
@@ -22,14 +23,16 @@ public class CexTask {
 
     private final StrategyExecutor strategyExecutor;
     private final TrendFollowingStrategy trendFollowingStrategy;
-//    @Scheduled(cron = " */5 * * * * *")
+    private final AdaptiveStrategy adaptiveStrategy;
+
+    //    @Scheduled(cron = " */5 * * * * *")
     public void getNewMarketPrice() {
-        LinkedHashMap<String, Object> parameters =new LinkedHashMap<>();
+        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("symbol", "BTCUSDT");
         binanceService.getMarkPrice(parameters).subscribe();
     }
 
-//    @Scheduled(cron = "0 */1 * * * *")
+    //    @Scheduled(cron = "0 */1 * * * *")
     public void getOpenOrders() {
 //        binanceService.getOpenOrders(SymbolConstant.BTCUSDT).subscribe();
     }
@@ -55,9 +58,14 @@ public class CexTask {
         strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
 
-    @Scheduled(cron = "*/10 * * * * *")
+    //    @Scheduled(cron = "*/10 * * * * *")
     public void executeTrendFollowingStrategy() {
-        trendFollowingStrategy.runStrategy("BTCUSDT",Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15)).subscribe();
+        trendFollowingStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15)).subscribe();
+    }
+
+    @Scheduled(cron = "*/10 * * * * *")
+    public void executeAdaptiveStrategy() {
+        adaptiveStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15)).subscribe();
     }
 
 }
