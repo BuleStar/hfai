@@ -11,11 +11,17 @@ import com.hf.webflux.hfai.cex.vo.MarkPriceInfo;
 import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.TickerSymbolResult;
 import com.hf.webflux.hfai.entity.Orders;
+import io.netty.handler.timeout.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+import reactor.util.retry.RetryBackoffSpec;
 
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.function.Supplier;
@@ -27,11 +33,34 @@ public class BinanceService {
     @Autowired
     private UMFuturesClientImpl futuresClient;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private <T> Mono<T> handleErrors(Supplier<Mono<T>> supplier, String methodName, LinkedHashMap<String, Object> parameters) {
         return supplier.get()
-//                .doOnSuccess(result -> log.info("Success in {}: {}", methodName, result))
-                .doOnError(e -> log.error("Error in {}: {}", methodName, e.getMessage(), e))
-                .onErrorResume(e -> Mono.error(new RuntimeException("Error in " + methodName + ": " + parameters, e)));
+                .doOnError(throwable -> {
+                    if (throwable instanceof TimeoutException || throwable.getMessage().contains("timeout")) {
+                        log.error("[{}] Timeout error: {}", methodName, throwable.getMessage());
+                    } else {
+                        log.error("[{}] Error: {}", methodName, throwable.getMessage(), throwable);
+                    }
+                })
+                .onErrorResume(throwable -> {
+                    if (throwable instanceof TimeoutException || throwable.getMessage().contains("timeout")) {
+                        return Mono.error(new CustomException("Timeout error occurred in " + methodName));
+                    } else {
+                        return Mono.error(throwable);
+                    }
+                });
+    }
+
+    static class CustomException extends RuntimeException {
+        public CustomException(String message) {
+            super(message);
+        }
+    }
+
+    private RetryBackoffSpec retrySpec() {
+        return Retry.backoff(3, Duration.ofSeconds(2))
+                .filter(throwable -> throwable instanceof TimeoutException || throwable.getMessage().contains("timeout"));
     }
 
     public Mono<String> accountInformation(LinkedHashMap<String, Object> parameters) {
@@ -64,7 +93,7 @@ public class BinanceService {
 
     public Mono<MarkPriceInfo> getMarkPrice(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().markPrice(parameters))
-                .flatMap(data -> parseJson(data, MarkPriceInfo.class))
+                        .flatMap(data -> parseJson(data, MarkPriceInfo.class))
                 , "getMarkPrice", parameters);
     }
 
@@ -78,10 +107,11 @@ public class BinanceService {
      */
     public Mono<List<List<Object>>> getKlines(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().klines(parameters))
+                        .timeout(Duration.ofSeconds(5)) // 设置超时时间
                         .map(data -> parseData(data, List.class))
-//                        .doOnSuccess(data -> log.info("Success in getKlines: {}", data))
                 , "getKlines", parameters);
     }
+
 
     public Mono<List<FundingRate>> getFundingRate(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() -> Mono.fromCallable(() -> futuresClient.market().fundingRate(parameters))
@@ -102,10 +132,11 @@ public class BinanceService {
                         })
                 , "getTickerSymbol", parameters);
     }
+
     public Mono<OrderBook> getDepth(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() ->
                         Mono.fromCallable(() -> futuresClient.market().depth(parameters))
-                                .map(this::parseOrderBook) ,// 使用 map 方法将 JSON 转换为 OrderBook
+                                .map(this::parseOrderBook),// 使用 map 方法将 JSON 转换为 OrderBook
 //                                .doOnSuccess(orderBook -> log.info("Success in getDepth: {}", orderBook)),
                 "getDepth", parameters
         );
@@ -114,11 +145,12 @@ public class BinanceService {
     public Mono<Orders> newOrder(LinkedHashMap<String, Object> parameters) {
         return handleErrors(() ->
                         Mono.fromCallable(() -> futuresClient.account().newOrder(parameters))
-                                .map(this::parseOrders) ,// 使用 map 方法将 JSON 转换为 OrderBook
+                                .map(this::parseOrders),// 使用 map 方法将 JSON 转换为 OrderBook
 //                                .doOnSuccess(orderBook -> log.info("Success in getDepth: {}", orderBook)),
                 "newOrder", parameters
         );
     }
+
     private <T> T parseData(String data, Class<T> clazz) {
         try {
             return OBJECT_MAPPER.readValue(data, clazz);

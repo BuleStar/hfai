@@ -55,12 +55,13 @@ public class TradeAnalysisTool {
         double avgLoss = loseCount > 0 ? totalLoss / loseCount : 0;
         double profitLossRatio = avgLoss != 0 ? avgProfit / Math.abs(avgLoss) : 0;
 
-        System.out.println("总盈亏: " + totalProfitLoss);
-        System.out.println("交易胜率: " + winRate);
-        System.out.println("平均收益: " + avgProfit);
-        System.out.println("平均损失: " + avgLoss);
-        System.out.println("盈亏比: " + profitLossRatio);
-
+        if (winRate>0.8) {
+            System.out.println("总盈亏: " + totalProfitLoss);
+            System.out.println("交易胜率: " + winRate);
+            System.out.println("平均收益: " + avgProfit);
+            System.out.println("平均损失: " + avgLoss);
+            System.out.println("盈亏比: " + profitLossRatio);
+        }
         return results;
     }
 }

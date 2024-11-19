@@ -3,14 +3,17 @@ package com.hf.webflux.hfai.task;
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.cex.constant.Interval;
 import com.hf.webflux.hfai.cex.strategy.AdaptiveStrategy;
+import com.hf.webflux.hfai.cex.strategy.Population;
 import com.hf.webflux.hfai.cex.strategy.StrategyExecutor;
 import com.hf.webflux.hfai.cex.strategy.TrendFollowingStrategy;
+import com.hf.webflux.hfai.common.StrategyArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 
 
@@ -53,7 +56,7 @@ public class CexTask {
 //        fundingRateStrategyService.scheduleFundingRateStrategy(request);
     }
 
-    @Scheduled(cron = "*/10 * * * * *")
+    //    @Scheduled(cron = "*/10 * * * * *")
     public void executeOrderBookDepthStrategy() {
         strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
@@ -63,9 +66,34 @@ public class CexTask {
         trendFollowingStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15)).subscribe();
     }
 
-    @Scheduled(cron = "*/10 * * * * *")
+//    @Scheduled(cron = "0 0 */1 * * *")
     public void executeAdaptiveStrategy() {
-        adaptiveStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15)).subscribe();
+        Population population = new Population();
+        population.initialize(100);
+        for (int generation = 0; generation < 100; generation++) {
+            // 计算适应度
+            for (StrategyArgs individual : population.individuals) {
+//            individual.fitness = backtestStrategy(series, individual);
+                adaptiveStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15), individual).subscribe();
+            }
+            // 选择、交叉、变异生成新种群
+            Population newPopulation = new Population();
+            for (int i = 0; i < 100; i++) {
+                StrategyArgs parent1 = Population.select(population);
+                StrategyArgs parent2 = Population.select(population);
+                StrategyArgs offspring = Population.crossover(parent1, parent2);
+                Population.mutate(offspring, 0.1); // 变异率 10%
+                newPopulation.individuals.add(offspring);
+            }
+
+            population = newPopulation;
+        }
+
+
+        // 输出最佳个体
+        StrategyArgs bestIndividual = population.individuals.stream().max(Comparator.comparing(i -> i.fitness)).orElse(null);
+        System.out.println("Best Parameters: " + bestIndividual);
+
     }
 
 }
