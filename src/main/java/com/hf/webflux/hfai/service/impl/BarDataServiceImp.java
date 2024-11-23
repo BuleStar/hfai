@@ -2,11 +2,12 @@ package com.hf.webflux.hfai.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.hf.webflux.hfai.entity.BarData;
-import com.hf.webflux.hfai.entity.OrderEntity;
 import com.hf.webflux.hfai.mapper.BarDataMapper;
 import com.hf.webflux.hfai.service.BarDataService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * <p>
@@ -31,5 +32,12 @@ public class BarDataServiceImp extends ServiceImpl<BarDataMapper, BarData> imple
         } else {
             baseMapper.insert(barData);
         }
+    }
+
+
+    public List<BarData> getBarDataByTimePeriod(String timePeriod) {
+        LambdaUpdateWrapper<BarData> lambdaUpdateWrapper = new LambdaUpdateWrapper<>();
+        lambdaUpdateWrapper.eq(BarData::getTimePeriod, timePeriod);
+        return baseMapper.selectList(lambdaUpdateWrapper);
     }
 }

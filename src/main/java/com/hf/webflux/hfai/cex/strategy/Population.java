@@ -1,6 +1,7 @@
 package com.hf.webflux.hfai.cex.strategy;
 
 import com.hf.webflux.hfai.common.StrategyArgs;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +10,7 @@ import static cn.hutool.core.util.RandomUtil.randomDouble;
 import static cn.hutool.core.util.RandomUtil.randomInt;
 import static org.apache.commons.lang3.RandomUtils.*;
 
-
+@Getter
 public class Population {
 
     public List<StrategyArgs> individuals;
@@ -20,17 +21,17 @@ public class Population {
     public void initialize(int populationSize) {
         for (int i = 0; i < populationSize; i++) {
             StrategyArgs individual = StrategyArgs.builder()
-                    .adx(randomInt(7, 30))
-                    .sma(randomInt(14, 60))
-                    .rsi(randomInt(7, 30))
-                    .bollingerBandBUpperCount(randomInt(10, 30))
-                    .bollingerBandBLowerCount(randomInt(15, 30))
+                    .adx(randomInt(18, 30))
+                    .sma(randomInt(14, 90))
+                    .rsi(randomInt(7, 50))
+                    .bollingerBandBUpperCount(randomInt(10, 50))
+                    .bollingerBandBLowerCount(randomInt(15, 50))
                     .isTrendIngAdx(randomInt(5, 30))
-                    .isRanging(randomDouble(0.01, 0.05))
+                    .isRanging(randomDouble(0.05, 0.2))
                     .stopLoss(randomDouble(0.01, 0.05))
-                    .takeProfit(randomDouble(0.05, 0.5))
-                    .rsiBuy(randomInt(10, 30))
-                    .rsiSell(randomInt(70, 90))
+                    .takeProfit(randomDouble(0.05, 0.9))
+                    .rsiBuy(randomInt(4, 30))
+                    .rsiSell(randomInt(65, 95))
                     .build();
             individuals.add(individual);
         }

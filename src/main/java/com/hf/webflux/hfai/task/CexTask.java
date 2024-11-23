@@ -28,12 +28,12 @@ public class CexTask {
     private final TrendFollowingStrategy trendFollowingStrategy;
     private final AdaptiveStrategy adaptiveStrategy;
 
-    //    @Scheduled(cron = " */5 * * * * *")
-    public void getNewMarketPrice() {
-        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("symbol", "BTCUSDT");
-        binanceService.getMarkPrice(parameters).subscribe();
-    }
+//    @Scheduled(cron = " */5 * * * * *")
+//    public void getNewMarketPrice() {
+//        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
+//        parameters.put("symbol", "BTCUSDT");
+//        binanceService.getMarkPrice(parameters).subscribe();
+//    }
 
     //    @Scheduled(cron = "0 */1 * * * *")
     public void getOpenOrders() {
@@ -66,33 +66,26 @@ public class CexTask {
         trendFollowingStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15)).subscribe();
     }
 
-//    @Scheduled(cron = "0 0 */1 * * *")
+    // StrategyArgs(adx=25, sma=44, ema=0, rsi=26, bollingerBandBUpperCount=18, bollingerBandBLowerCount=26, isTrendIngAdx=10, isRanging=0.017916096819764547, stopLoss=0.015773009067334597, takeProfit=0.2701840726272265, rsiBuy=13, rsiSell=81, fitness=0.0)
+    // StrategyArgs(adx=18, sma=49, ema=0, rsi=19, bollingerBandBUpperCount=24, bollingerBandBLowerCount=27, isTrendIngAdx=7, isRanging=0.022920983728795342, stopLoss=0.024304128409083664, takeProfit=0.0752267049324738, rsiBuy=24, rsiSell=76, fitness=0.0)
+    // StrategyArgs(adx=18, sma=24, ema=0, rsi=19, bollingerBandBUpperCount=24, bollingerBandBLowerCount=27, isTrendIngAdx=7, isRanging=0.0229837626555521, stopLoss=0.024304128409083664, takeProfit=0.15367001559091573, rsiBuy=24, rsiSell=82, fitness=0.0)    //    @Scheduled(cron = "0 0 */1 * * *")
+    @Scheduled(cron = "*/10 * * * * *")
     public void executeAdaptiveStrategy() {
-        Population population = new Population();
-        population.initialize(100);
-        for (int generation = 0; generation < 100; generation++) {
-            // 计算适应度
-            for (StrategyArgs individual : population.individuals) {
-//            individual.fitness = backtestStrategy(series, individual);
-                adaptiveStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15), individual).subscribe();
-            }
-            // 选择、交叉、变异生成新种群
-            Population newPopulation = new Population();
-            for (int i = 0; i < 100; i++) {
-                StrategyArgs parent1 = Population.select(population);
-                StrategyArgs parent2 = Population.select(population);
-                StrategyArgs offspring = Population.crossover(parent1, parent2);
-                Population.mutate(offspring, 0.1); // 变异率 10%
-                newPopulation.individuals.add(offspring);
-            }
+        StrategyArgs strategyArgs = StrategyArgs.builder()
+                .adx(18)
+                .sma(49)
+                .rsi(19)
+                .bollingerBandBUpperCount(24)
+                .bollingerBandBLowerCount(27)
+                .isTrendIngAdx(7)
+                .isRanging(0.022)
+                .stopLoss(0.024)
+                .takeProfit(0.153)
+                .rsiBuy(24)
+                .rsiSell(82)
+                .build();
+        adaptiveStrategy.runStrategy("BTCUSDT", Interval.FIFTEEN_MINUTES.getValue(), 1500, Duration.ofMinutes(15), strategyArgs).subscribe();
 
-            population = newPopulation;
-        }
-
-
-        // 输出最佳个体
-        StrategyArgs bestIndividual = population.individuals.stream().max(Comparator.comparing(i -> i.fitness)).orElse(null);
-        System.out.println("Best Parameters: " + bestIndividual);
 
     }
 

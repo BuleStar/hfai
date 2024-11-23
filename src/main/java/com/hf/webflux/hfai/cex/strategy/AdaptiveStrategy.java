@@ -3,6 +3,9 @@ package com.hf.webflux.hfai.cex.strategy;
 import cn.hutool.json.JSONUtil;
 import com.hf.webflux.hfai.cex.data.DataFetcherService;
 import com.hf.webflux.hfai.common.StrategyArgs;
+import com.hf.webflux.hfai.config.PopulationUtils;
+import com.hf.webflux.hfai.event.EventPublisherService;
+import dev.ai4j.openai4j.Json;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
@@ -21,10 +24,16 @@ import org.ta4j.core.indicators.statistics.StandardDeviationIndicator;
 import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 import org.ta4j.core.rules.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.hf.webflux.hfai.utils.TradeAnalysisTool.analyzeTrades;
 
@@ -35,14 +44,20 @@ import static com.hf.webflux.hfai.utils.TradeAnalysisTool.analyzeTrades;
 public class AdaptiveStrategy {
 
     private final DataFetcherService dataFetcherService;
-    private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
+    private final EventPublisherService eventPublisherService;
 
-
-    // 加载数据的辅助方法
     // 加载数据的辅助方法
     private Mono<BarSeries> loadData(String symbol, String interval, int limit, Duration timePeriod) {
         // 示例：构建一系列假数据
         return dataFetcherService.getKlineData(symbol, interval, limit, timePeriod).map(bars -> new BaseBarSeriesBuilder().withName("TrendData").withBars(bars).build());
+    }
+
+    /**
+     * 从数据库加载数据
+     */
+    private Mono<BarSeries> loadDataFromDb(String symbol, String interval, int limit, Duration timePeriod) {
+
+        return dataFetcherService.getKlineDataFromDb(symbol, interval, limit, timePeriod).map(bars -> new BaseBarSeriesBuilder().withName("TrendDataFromDb").withBars(bars).build());
     }
 
 
@@ -92,6 +107,74 @@ public class AdaptiveStrategy {
 
     public Mono<Num> runStrategy(String symbol, String interval, int limit, Duration timePeriod, StrategyArgs strategyArgs) {
         return loadData(symbol, interval, limit, timePeriod)
+                .flatMap(series -> buildAdaptiveStrategy(series, strategyArgs)
+                        .flatMap(strategy -> {
+                            BarSeriesManager seriesManager = new BarSeriesManager(series);
+                            TradingRecord tradingRecord = seriesManager.run(strategy);
+
+                            // 使用 ReturnCriterion 计算总收益率
+                            AnalysisCriterion returnCriterion = new ReturnCriterion();
+                            Num totalReturn = returnCriterion.calculate(series, tradingRecord);
+                            log.info("Total Return: {}", totalReturn);
+
+                            // 检查最新的 K 线数据是否触发交易信号
+                            int endIndex = series.getEndIndex();
+                            handleTradingSignal(strategy, series, endIndex, symbol);
+
+                            // 异步计算适应度
+                            return calculateFitnessFromTradesAsync(tradingRecord.getTrades());
+                        })
+                        .onErrorResume(e -> {
+                            log.error("策略执行失败: {}", e.getMessage());
+                            return Mono.empty();
+                        })
+                )
+                .onErrorResume(e -> {
+                    log.error("加载数据失败: {}", e.getMessage());
+                    return Mono.empty();
+                });
+    }
+
+    /**
+     * 处理交易信号，包括买入、卖出和无信号的情况。
+     */
+    private void handleTradingSignal(Strategy strategy, BarSeries series, int endIndex, String symbol) {
+        BigDecimal bestBidPrice = series.getLastBar().getOpenPrice().bigDecimalValue();
+        if (strategy.shouldEnter(endIndex)) {
+            log.info("建议买入 (Index: {})", endIndex);
+            sendMessage(symbol, bestBidPrice)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnError(e -> log.error("发送买入信号失败: {}", e.getMessage()))
+                    .subscribe();
+        } else if (strategy.shouldExit(endIndex)) {
+            log.info("建议卖出 (Index: {})", endIndex);
+            sendMessage(symbol, bestBidPrice)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnError(e -> log.error("发送卖出信号失败: {}", e.getMessage()))
+                    .subscribe();
+        } else {
+            log.info("无交易信号 (Index: {})", endIndex);
+        }
+    }
+
+    /**
+     * 异步计算适应度。
+     */
+    private Mono<Num> calculateFitnessFromTradesAsync(List<Trade> trades) {
+        return Mono.fromCallable(() -> calculateFitnessFromTrades(trades))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+
+    private Mono<Void> sendMessage(String symbol, BigDecimal bestBidPrice) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("symbol", symbol);
+        map.put("bestBidPrice", bestBidPrice);
+        return Mono.fromRunnable(() -> eventPublisherService.publishCustomEvent(Json.toJson(map)));
+    }
+
+    public Mono<Num> runStrategyFromDb(String symbol, String interval, int limit, Duration timePeriod, StrategyArgs strategyArgs) {
+        return loadDataFromDb(symbol, interval, limit, timePeriod)
                 .flatMap(series -> buildAdaptiveStrategy(series, strategyArgs)
                                 .flatMap(strategy -> {
                                     BarSeriesManager seriesManager = new BarSeriesManager(series);

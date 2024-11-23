@@ -6,6 +6,8 @@ import com.google.gson.Gson;
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.entity.BarData;
 import com.hf.webflux.hfai.event.EventPublisherService;
+import com.hf.webflux.hfai.service.BarDataService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,13 +26,17 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class DataFetcherService{
+@RequiredArgsConstructor
+public class DataFetcherService {
 
-    @Autowired
-    private BinanceService binanceService;
-    @Autowired
-    private EventPublisherService eventPublisherService;
-    public Mono<List<Bar>> getKlineData(String symbol, String interval, int limit,Duration timePeriod) {
+
+    private final BinanceService binanceService;
+
+    private final EventPublisherService eventPublisherService;
+
+    private final BarDataService barDataService;
+
+    public Mono<List<Bar>> getKlineData(String symbol, String interval, int limit, Duration timePeriod) {
         LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
         Date now = new Date();
         Long startTime = DateUtil.offsetDay(now, -7).getTime();
@@ -43,17 +49,25 @@ public class DataFetcherService{
         log.info("参数：{}", parameters);
         return binanceService.getKlines(parameters)
                 .map(data -> data.stream()
-                        .map(klineData ->parseKlineData(klineData,timePeriod))
+                        .map(klineData -> parseKlineData(klineData,timePeriod))
                         .collect(Collectors.toList()));
     }
-    private Bar parseKlineData(List<Object> klineData,Duration timePeriod) {
+
+    public Mono<List<Bar>> getKlineDataFromDb(String symbol, String interval, int limit, Duration timePeriod) {
+        return Mono.fromCallable(() ->
+                barDataService.getBarDataByTimePeriod(interval).stream()
+                        .map(klineData -> parseKlineDataFromDb(klineData, timePeriod))
+                        .collect(Collectors.toList()));
+    }
+
+    private Bar parseKlineData(List<Object> klineData, Duration timePeriod) {
         // 确保 klineData.get(0) 是一个可以解析为 long 类型的字符串
         String timestampStr = klineData.get(0).toString();
         long timestamp = Long.parseLong(timestampStr);
 
         // 使用 Hutool 的 DateUtil 将时间戳转换为 Date 对象
         String formattedDate = DateUtil.format(new Date(timestamp), "yyyy-MM-dd'T'HH:mm:ss'Z'");
-        Bar bar=new BaseBar(timePeriod,
+        Bar bar = new BaseBar(timePeriod,
                 ZonedDateTime.parse(formattedDate),
                 Double.parseDouble(String.valueOf(klineData.get(1))),
                 Double.parseDouble(String.valueOf(klineData.get(2))),
@@ -61,7 +75,7 @@ public class DataFetcherService{
                 Double.parseDouble(String.valueOf(klineData.get(4))),
                 Double.parseDouble(String.valueOf(klineData.get(5))),
                 Double.parseDouble(String.valueOf(klineData.get(7))));
-        BarData barData=BarData.builder()
+        BarData barData = BarData.builder()
                 .timePeriod(timePeriod.toString())
                 .beginTime(bar.getBeginTime().toLocalDateTime())
                 .endTime(bar.getEndTime().toLocalDateTime())
@@ -76,5 +90,22 @@ public class DataFetcherService{
         eventPublisherService.BarDataEvent(barData);
         // 解析 klineData 并返回 Bar 对象
         return bar;
+    }
+
+    private Bar parseKlineDataFromDb(BarData barData, Duration timePeriod) {
+        // 确保 klineData.get(0) 是一个可以解析为 long 类型的字符串
+        String timestampStr = barData.getEndTime().toString();
+        long timestamp = Long.parseLong(timestampStr);
+        // 使用 Hutool 的 DateUtil 将时间戳转换为 Date 对象
+        String formattedDate = DateUtil.format(new Date(timestamp), "yyyy-MM-dd'T'HH:mm:ss'Z'");
+        // 解析 klineData 并返回 Bar 对象
+        return new BaseBar(timePeriod,              //timePeriod the time period
+                ZonedDateTime.parse(formattedDate), //endTime    the end time of the bar period
+                barData.getOpenPrice().doubleValue(),
+                barData.getHighPrice().doubleValue(),
+                barData.getLowPrice().doubleValue(),
+                barData.getClosePrice().doubleValue(),
+                barData.getVolume().doubleValue(),
+                barData.getAmount().doubleValue());
     }
 }

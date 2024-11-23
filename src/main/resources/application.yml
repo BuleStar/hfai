@@ -1,12 +1,12 @@
 server:
-    port: 8080
+    port: 8081
 spring:
     application:
         name: hfai
     data:
         redis:
             database: 15
-            host: 192.168.1.102
+            host: 192.168.1.101
             port: 6379
             password:
             jedis:
@@ -16,9 +16,9 @@ spring:
                     min-idle: 5
                     max-idle: 8
     datasource:
-        url: jdbc:mysql://192.168.1.102:3306/mall
+        url: jdbc:mysql://192.168.1.101:3306/mall
         username: root
-        password: 1q2w3e4r
+        password: rootpassword
         driver-class-name: com.mysql.cj.jdbc.Driver
         # hikari连接池配置
         hikari:
@@ -51,6 +51,8 @@ user:
     expireTimeInSeconds: 360
 cache:
     key: user_key
+    populationKey: user_population_key
+    populationCount: 1000
 
 langchain4j:
     open-ai:
