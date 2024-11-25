@@ -2,10 +2,7 @@ package com.hf.webflux.hfai.task;
 
 import com.hf.webflux.hfai.cex.BinanceService;
 import com.hf.webflux.hfai.cex.constant.Interval;
-import com.hf.webflux.hfai.cex.strategy.AdaptiveStrategy;
-import com.hf.webflux.hfai.cex.strategy.Population;
-import com.hf.webflux.hfai.cex.strategy.StrategyExecutor;
-import com.hf.webflux.hfai.cex.strategy.TrendFollowingStrategy;
+import com.hf.webflux.hfai.cex.strategy.*;
 import com.hf.webflux.hfai.common.StrategyArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +24,8 @@ public class CexTask {
     private final StrategyExecutor strategyExecutor;
     private final TrendFollowingStrategy trendFollowingStrategy;
     private final AdaptiveStrategy adaptiveStrategy;
+    private final BinancePullUpDetector binancePullUpDetector;
+
 
 //    @Scheduled(cron = " */5 * * * * *")
 //    public void getNewMarketPrice() {
@@ -88,5 +87,8 @@ public class CexTask {
 
 
     }
-
+    @Scheduled(cron = "*/5 * * * * *")
+    public void runMonitor() {
+        binancePullUpDetector.runMonitor("BTCUSDT", Interval.FIVE_MINUTES.getValue(), 10, Duration.ofMinutes(5)).subscribe();
+    }
 }
