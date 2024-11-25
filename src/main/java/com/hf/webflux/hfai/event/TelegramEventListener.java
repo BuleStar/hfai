@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono;
 @Component
 public class TelegramEventListener {
 
-    @Autowired
+//    @Autowired
     private TelegramBotService telegramBotService;
     @Value("${telegram.chatId}")
     private String chatId;

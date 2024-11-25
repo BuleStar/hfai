@@ -7,9 +7,9 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import reactor.core.publisher.Mono;
 
-@Service
+//@Service
 public class TelegramBotService {
-    @Autowired
+//    @Autowired
     private  TelegramLongPollingBot telegramBot;
 
     public void sendMessage(String chatId, String text) {
