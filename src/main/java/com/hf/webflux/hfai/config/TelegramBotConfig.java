@@ -8,17 +8,17 @@ import org.springframework.context.annotation.Configuration;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-@Configuration
+//@Configuration
 public class TelegramBotConfig {
 
     private final TgBotService tgBotService;
 
-    @Autowired
+//    @Autowired
     public TelegramBotConfig(TgBotService tgBotService) {
         this.tgBotService = tgBotService;
     }
 
-    @Bean
+//    @Bean
     public TelegramLongPollingBot telegramBot() {
         TgBot tgBot = tgBotService.getBotCredentials(); // Fetch credentials
 

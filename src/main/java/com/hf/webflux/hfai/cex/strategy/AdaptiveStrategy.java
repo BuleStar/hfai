@@ -1,14 +1,12 @@
 package com.hf.webflux.hfai.cex.strategy;
 
-import cn.hutool.json.JSONUtil;
 import com.hf.webflux.hfai.cex.data.DataFetcherService;
 import com.hf.webflux.hfai.common.StrategyArgs;
-import com.hf.webflux.hfai.config.PopulationUtils;
 import com.hf.webflux.hfai.event.EventPublisherService;
+import com.hf.webflux.hfai.message.MailUtil;
 import dev.ai4j.openai4j.Json;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.*;
 import org.ta4j.core.backtest.BarSeriesManager;
@@ -24,18 +22,14 @@ import org.ta4j.core.indicators.statistics.StandardDeviationIndicator;
 import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.num.Num;
 import org.ta4j.core.rules.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.hf.webflux.hfai.utils.TradeAnalysisTool.analyzeTrades;
 
 
 @Slf4j
@@ -45,6 +39,7 @@ public class AdaptiveStrategy {
 
     private final DataFetcherService dataFetcherService;
     private final EventPublisherService eventPublisherService;
+    private final MailUtil mailUtil;
 
     // 加载数据的辅助方法
     private Mono<BarSeries> loadData(String symbol, String interval, int limit, Duration timePeriod) {
@@ -142,16 +137,18 @@ public class AdaptiveStrategy {
         BigDecimal bestBidPrice = series.getLastBar().getOpenPrice().bigDecimalValue();
         if (strategy.shouldEnter(endIndex)) {
             log.info("建议买入 (Index: {})", endIndex);
-            sendMessage(symbol, bestBidPrice)
-                    .subscribeOn(Schedulers.boundedElastic())
-                    .doOnError(e -> log.error("发送买入信号失败: {}", e.getMessage()))
-                    .subscribe();
+            mailUtil.sendSimpleMail("crf305951328@qq.com", "买入信号", "建议买入 " + symbol + " 当前价格：" + bestBidPrice);
+//            sendMessage(symbol, bestBidPrice)
+//                    .subscribeOn(Schedulers.boundedElastic())
+//                    .doOnError(e -> log.error("发送买入信号失败: {}", e.getMessage()))
+//                    .subscribe();
         } else if (strategy.shouldExit(endIndex)) {
             log.info("建议卖出 (Index: {})", endIndex);
-            sendMessage(symbol, bestBidPrice)
-                    .subscribeOn(Schedulers.boundedElastic())
-                    .doOnError(e -> log.error("发送卖出信号失败: {}", e.getMessage()))
-                    .subscribe();
+            mailUtil.sendSimpleMail("crf305951328@qq.com", "卖出信号", "建议卖出 " + symbol + " 当前价格：" + bestBidPrice);
+//            sendMessage(symbol, bestBidPrice)
+//                    .subscribeOn(Schedulers.boundedElastic())
+//                    .doOnError(e -> log.error("发送卖出信号失败: {}", e.getMessage()))
+//                    .subscribe();
         } else {
             log.info("无交易信号 (Index: {})", endIndex);
         }

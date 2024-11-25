@@ -38,7 +38,18 @@ spring:
             connection-timeout: 30000
             # 连接测试query
             connection-test-query: SELECT 1
-
+    mail:
+        host: smtp.qq.com
+        port: 587
+        username: crf305951328@qq.com
+        password: ${EMAIL_PASSWORD}  # 邮箱授权码
+        protocol: smtp
+        properties:
+            mail:
+                smtp:
+                    auth: true
+                    starttls:
+                        enable: true
 #mybatisplus的配置
 mybatis-plus:
     configuration:

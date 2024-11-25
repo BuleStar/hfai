@@ -2,7 +2,6 @@ package com.hf.webflux.hfai.cex.strategy;
 
 import com.hf.webflux.hfai.cex.TradeService;
 import com.hf.webflux.hfai.cex.vo.StrategyResult;
-import com.hf.webflux.hfai.tg.TelegramBotService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,8 +17,8 @@ public class StrategyExecutor {
     private StrategyEvaluator strategyEvaluator;
     @Autowired
     private TradeService tradeService;
-    @Autowired
-    private TelegramBotService telegramBotService;
+//    @Autowired
+//    private TelegramBotService telegramBotService;
     @Autowired
     private OrderBookDepthStrategy orderBookDepthStrategy;
 
