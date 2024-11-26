@@ -8,7 +8,9 @@ import com.hf.webflux.hfai.cex.vo.MyOrder;
 import com.hf.webflux.hfai.cex.vo.OrderBook;
 import com.hf.webflux.hfai.cex.vo.StrategyResult;
 import com.hf.webflux.hfai.event.EventPublisherService;
+import com.hf.webflux.hfai.message.MailUtil;
 import dev.ai4j.openai4j.Json;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,14 +27,13 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class OrderBookDepthStrategy {
 
-    @Autowired
-    private BinanceService binanceService;
-    @Autowired
-    private TradeService tradeService;
-    @Autowired
-    private EventPublisherService eventPublisherService;
+    private final BinanceService binanceService;
+    private final TradeService tradeService;
+    private final EventPublisherService eventPublisherService;
+    private final MailUtil mailUtil;
     // 设置深度阈值
     private static final BigDecimal BUY_DEPTH_RATIO_THRESHOLD = new BigDecimal("4.5");  // 示例值，实际可根据策略调整
     private static final BigDecimal SELL_DEPTH_RATIO_THRESHOLD = new BigDecimal("0.5");  // 示例值，实际可根据策略调整
@@ -104,8 +105,8 @@ public class OrderBookDepthStrategy {
                             lowerBound
                     )).flatMap(strategyResult -> {
                                 if (strategyResult.getSide().equals("BUY") || strategyResult.getSide().equals("SELL")) {
-                                    return sendMessage(symbol,strategyResult.getSide(), buySellDepthRatio, bestBidPrice, bestAskPrice, fundingRate, upperBound, lowerBound)
-                                            .then(Mono.just(strategyResult));
+                                    mailUtil.sendSimpleMail("crf305951328@qq.com", "生成" + strategyResult.getSide() + "信号", "急速拉盘信号");
+                                    return Mono.just(strategyResult);
                                 } else {
                                     return Mono.just(strategyResult);
                                 }
@@ -132,7 +133,7 @@ public class OrderBookDepthStrategy {
         }
     }
 
-    private Mono<Void> sendMessage(String symbol,String side, BigDecimal buySellDepthRatio, BigDecimal bestBidPrice, BigDecimal bestAskPrice, BigDecimal fundingRate, BigDecimal upperBound, BigDecimal lowerBound) {
+    private Mono<Void> sendMessage(String symbol, String side, BigDecimal buySellDepthRatio, BigDecimal bestBidPrice, BigDecimal bestAskPrice, BigDecimal fundingRate, BigDecimal upperBound, BigDecimal lowerBound) {
         Map<String, Object> map = new HashMap<>();
         map.put("symbol", symbol);
         map.put("side", side);

@@ -55,7 +55,7 @@ public class CexTask {
 //        fundingRateStrategyService.scheduleFundingRateStrategy(request);
     }
 
-    //    @Scheduled(cron = "*/10 * * * * *")
+    @Scheduled(cron = "*/3 * * * * *")
     public void executeOrderBookDepthStrategy() {
         strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
@@ -87,6 +87,7 @@ public class CexTask {
 
 
     }
+
     @Scheduled(cron = "*/5 * * * * *")
     public void runMonitor() {
         binancePullUpDetector.runMonitor("BTCUSDT", Interval.FIVE_MINUTES.getValue(), 10, Duration.ofMinutes(5)).subscribe();

@@ -28,15 +28,12 @@ public class StrategyExecutor {
         );
 
         return strategyEvaluator.executeFinalStrategy(strategies)
-                .flatMap(finalDecision -> {
-                    switch (finalDecision) {
-                        case "BUY":
-                            return executeBuyOrder(symbol);
-                        case "SELL":
-                            return executeSellOrder(symbol);
-                        default:
-                            log.info("No action taken for symbol: {}", symbol);
-                            return Mono.empty();  // Do nothing for "NULL"
+                .flatMap(finalDecision -> switch (finalDecision) {
+                    case "BUY" -> executeBuyOrder(symbol);
+                    case "SELL" -> executeSellOrder(symbol);
+                    default -> {
+                        log.info("No action taken for symbol: {}", symbol);
+                        yield Mono.empty();
                     }
                 });
     }
