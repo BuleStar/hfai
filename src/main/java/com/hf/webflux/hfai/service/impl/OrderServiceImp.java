@@ -1,11 +1,9 @@
 package com.hf.webflux.hfai.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.hf.webflux.hfai.common.ResultType.*;
 import com.hf.webflux.hfai.entity.OrderEntity;
-import com.hf.webflux.hfai.exception.BusinessException;
 import com.hf.webflux.hfai.mapper.OrderMapper;
 import com.hf.webflux.hfai.service.OrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -14,11 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.Date;
 import java.util.function.Function;
 
 /**
@@ -46,7 +42,7 @@ public class OrderServiceImp extends ServiceImpl<OrderMapper, OrderEntity> imple
         // 构造特定订单和状态的锁键
         String ORDER_LOCK_KEY = REDIS_LOCK_KEY + orderId + status;
         // 尝试在Redis中设置锁，如果锁不存在则设置成功，返回true；否则返回false
-        var resourceSupplier = reactiveRedisTemplate.opsForValue().setIfAbsent(ORDER_LOCK_KEY, String.valueOf(System.currentTimeMillis()), Duration.ofSeconds(5));
+        Mono<Boolean> resourceSupplier = reactiveRedisTemplate.opsForValue().setIfAbsent(ORDER_LOCK_KEY, String.valueOf(System.currentTimeMillis()), Duration.ofSeconds(5));
         // 记录锁获取结果
         log.info("resourceSupplier:{}", resourceSupplier);
 

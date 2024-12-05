@@ -58,10 +58,10 @@ public class OrderBookDepthStrategy {
 
 
     private Mono<Tuple2<OrderBook, MarkPriceInfo>> getStrategy(String symbol) {
-        var depth = fetchOrderBookDepth(symbol);
+        Mono<OrderBook>  depth = fetchOrderBookDepth(symbol);
         LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("symbol", symbol);
-        var ratio = binanceService.getMarkPrice(parameters);
+        Mono<MarkPriceInfo> ratio = binanceService.getMarkPrice(parameters);
         return Mono.zip(depth, ratio);
     }
 

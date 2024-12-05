@@ -6,7 +6,7 @@ spring:
     data:
         redis:
             database: 15
-            host: 192.168.1.101
+            host: 192.168.1.100
             port: 6379
             password:
             jedis:
@@ -16,9 +16,9 @@ spring:
                     min-idle: 5
                     max-idle: 8
     datasource:
-        url: jdbc:mysql://192.168.1.101:3306/mall
+        url: jdbc:mysql://192.168.1.100:3306/mall
         username: root
-        password: rootpassword
+        password: 1q2w3e4r
         driver-class-name: com.mysql.cj.jdbc.Driver
         # hikari连接池配置
         hikari:
