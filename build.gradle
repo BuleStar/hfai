@@ -8,7 +8,6 @@ plugins {
     id 'application'
     id 'org.springframework.boot' version '3.4.0'
     id "io.freefair.lombok" version "6.6.1"
-
 }
 
 idea {
@@ -21,8 +20,10 @@ test {
     enabled(true)
 }
 repositories {
+    maven { url 'https://maven.aliyun.com/repository/public' }
     mavenCentral()
 }
+
 
 dependencies {
     implementation(
@@ -63,4 +64,13 @@ version = '0.0.1-SNAPSHOT'
 description = 'hfai'
 java.sourceCompatibility = JavaVersion.VERSION_17
 
-
+// 配置 bootBuildImage 任务
+bootBuildImage {
+    imageName = "hfai:latest"
+    publish = false          // 禁止推送到远程仓库
+    environment = [
+            "JAVA_TOOL_OPTIONS": "-Xmx2048m",
+            "BP_LAUNCH_CACHE": "false",
+            "BP_DISABLE_CACHING": "true"
+    ]
+}
