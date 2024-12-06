@@ -64,13 +64,8 @@ version = '0.0.1-SNAPSHOT'
 description = 'hfai'
 java.sourceCompatibility = JavaVersion.VERSION_17
 
-// 配置 bootBuildImage 任务
-bootBuildImage {
-    imageName = "hfai:latest"
-    publish = false          // 禁止推送到远程仓库
-    environment = [
-            "JAVA_TOOL_OPTIONS": "-Xmx2048m",
-            "BP_LAUNCH_CACHE": "false",
-            "BP_DISABLE_CACHING": "true"
-    ]
+task buildDocker(type: Exec) {
+    dependsOn build
+    commandLine 'docker', 'build', '-t', 'hfai:latest', '.'
 }
+
