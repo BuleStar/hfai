@@ -35,4 +35,4 @@ src/main/resources/api.yml
 logs
 
 /.gradle/
-/build/
+build
