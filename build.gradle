@@ -64,8 +64,66 @@ version = '0.0.1-SNAPSHOT'
 description = 'hfai'
 java.sourceCompatibility = JavaVersion.VERSION_17
 
-task buildDocker(type: Exec) {
-    dependsOn build
+// 注册清理旧容器和镜像的任务
+tasks.register('cleanup', Exec) {
+    group = "docker"
+    description = "Stops and removes old Docker container and image if they exist."
+    doFirst {
+        println "Cleaning up old Docker resources..."
+    }
+    commandLine 'bash', '-c', '''
+        # Stop and remove the running container if it exists
+        if docker ps -q --filter "name=hfai" > /dev/null; then
+            echo "Stopping and removing old container..."
+            docker stop hfai || true
+            docker rm hfai || true
+        fi
+
+        # Remove the old image if it exists
+        if docker images -q hfai:latest > /dev/null; then
+            echo "Removing old Docker image..."
+            docker rmi -f hfai:latest || true
+        fi
+    '''
+    doLast {
+        println "Cleanup complete."
+    }
+}
+
+// 注册构建 Docker 镜像的任务
+tasks.register('buildDocker', Exec) {
+    group = "docker"
+    description = "Builds the Docker image."
+    dependsOn 'cleanup'  // 依赖清理任务
+//    onlyIf { !project.hasProperty('skipBuild') }  // 可选跳过构建
     commandLine 'docker', 'build', '-t', 'hfai:latest', '.'
+    doFirst {
+        println "Building Docker image..."
+    }
+    doLast {
+        println "Docker image built successfully."
+    }
+}
+
+// 注册运行 Docker 容器的任务
+tasks.register('runDocker', Exec) {
+    group = "docker"
+    description = "Runs the Docker container."
+    dependsOn 'buildDocker'  // 依赖构建任务
+//    onlyIf { !project.hasProperty('skipRun') }  // 可选跳过运行
+    commandLine 'docker', 'run', '-p', '8080:8080', '-d', '--name', 'hfai', '--rm', 'hfai:latest'
+    doFirst {
+        println "Running Docker container..."
+    }
+    doLast {
+        println "Docker container is running."
+    }
+}
+
+// 串联任务，提供一个主任务来触发整个流程
+tasks.register('deploy') {
+    group = "docker"
+    description = "Builds and runs the Docker container."
+    dependsOn 'runDocker'  // 依赖运行任务
 }
 
