@@ -62,8 +62,12 @@ dependencies {
 group = 'com.hf.webflux'
 version = '0.0.1-SNAPSHOT'
 description = 'hfai'
-java.sourceCompatibility = JavaVersion.VERSION_17
-
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
 // 注册清理旧容器和镜像的任务
 tasks.register('cleanup', Exec) {
     group = "docker"
