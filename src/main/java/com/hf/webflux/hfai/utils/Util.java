@@ -1,7 +1,5 @@
 package com.hf.webflux.hfai.utils;
 
-import org.springframework.beans.factory.annotation.Value;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -27,6 +25,11 @@ public class Util {
         String urlTemplate = "https://min-api.cryptocompare.com/data/price?fsym={fsym}&tsyms={tsyms}";
         String urlString= urlTemplate.replace("{fsym}", fsym).replace("{tsyms}", tsyms);
         return fetchDataFromUrl(urlString);
+    }
+
+    public static String getFutruesPrice(String fsym, String tsyms) {
+        String urlTemplate = "https://data-api.cryptocompare.com/futures/v1/latest/tick?market=binance&instruments=BTC-USD-INVERSE-PERPETUAL";
+        return fetchDataFromUrl(urlTemplate);
     }
     public static String fetchDataFromUrl(String urlString) {
         StringBuilder response = new StringBuilder();

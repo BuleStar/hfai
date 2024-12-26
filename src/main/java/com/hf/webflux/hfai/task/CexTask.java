@@ -28,11 +28,11 @@ public class CexTask {
 
 
 //    @Scheduled(cron = " */5 * * * * *")
-//    public void getNewMarketPrice() {
-//        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
-//        parameters.put("symbol", "BTCUSDT");
-//        binanceService.getMarkPrice(parameters).subscribe();
-//    }
+    public void getNewMarketPrice() {
+        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("symbol", "BTCUSDT");
+        binanceService.getMarkPrice(parameters).subscribe();
+    }
 
     //    @Scheduled(cron = "0 */1 * * * *")
     public void getOpenOrders() {
@@ -55,7 +55,7 @@ public class CexTask {
 //        fundingRateStrategyService.scheduleFundingRateStrategy(request);
     }
 
-    @Scheduled(cron = "*/3 * * * * *")
+//    @Scheduled(cron = "*/3 * * * * *")
     public void executeOrderBookDepthStrategy() {
         strategyExecutor.runStrategies("BTCUSDT").subscribe();
     }
