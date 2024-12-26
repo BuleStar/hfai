@@ -98,8 +98,7 @@ tasks.register('cleanup', Exec) {
 tasks.register('buildDocker', Exec) {
     group = "docker"
     description = "Builds the Docker image."
-    dependsOn 'cleanup'  // 依赖清理任务
-//    onlyIf { !project.hasProperty('skipBuild') }  // 可选跳过构建
+    dependsOn 'cleanup', 'build'  // 确保在构建 Docker 镜像之前生成 JAR 文件
     commandLine 'docker', 'build', '-t', 'hfai:latest', '.'
     doFirst {
         println "Building Docker image..."
