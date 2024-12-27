@@ -47,7 +47,9 @@ dependencies {
             'org.ta4j:ta4j-core:0.17',
             'org.ta4j:ta4j-examples:0.17',
             'org.springframework.boot:spring-boot-starter-mail:3.4.0',
-            'com.google.code.gson:gson:2.11.0'
+            'com.google.code.gson:gson:2.11.0',
+            'com.squareup.okhttp3:okhttp:4.9.3',
+            'com.google.code.gson:gson:2.8.8',
     )
     runtimeOnly(
             'org.springframework.boot:spring-boot-devtools:3.4.0',
