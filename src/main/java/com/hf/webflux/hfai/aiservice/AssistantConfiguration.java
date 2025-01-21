@@ -16,3 +16,5 @@ class AssistantConfiguration {
         return MessageWindowChatMemory.withMaxMessages(10);
     }
 }
+
+ 

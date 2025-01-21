@@ -35,5 +35,5 @@ src/main/resources/api.yml
 logs
 
 .gradle
-
+.gradle/
 /.gradle/
